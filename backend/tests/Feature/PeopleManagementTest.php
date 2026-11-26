@@ -113,6 +113,26 @@ class PeopleManagementTest extends TestCase
         ], ['Accept' => 'application/json'])->assertForbidden();
     }
 
+    public function test_csv_import_rejects_passwords_with_whitespace(): void
+    {
+        $admin = $this->admin();
+        $this->signIn($admin);
+        $contents = implode("\n", [
+            'first_name,middle_names,first_surname,second_surname,identification,birth_date,username,password,status',
+            'Lucía,,Vega,Luna,1234567890,1990-05-10,Lucia1234,Strong Pass123!,active',
+        ]);
+
+        $this->post('/api/imports', [
+            'file' => UploadedFile::fake()->createWithContent('people.csv', $contents),
+        ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.success_rows', 0)
+            ->assertJsonPath('data.error_rows', 1)
+            ->assertJsonPath('data.rows.0.status', 'failed');
+
+        $this->assertDatabaseMissing('users', ['username' => 'Lucia1234']);
+    }
+
     public function test_administrator_can_import_xlsx_with_excel_date_cells(): void
     {
         $admin = $this->admin();
@@ -216,6 +236,7 @@ class PeopleManagementTest extends TestCase
     {
         $admin = $this->admin();
         $locked = User::factory()->create(['failed_login_attempts' => 3, 'locked_at' => now()]);
+        $locked->roles()->sync([Role::query()->where('slug', 'member')->value('id')]);
         $this->signIn($admin);
 
         $this->postJson("/api/people/{$locked->person_id}/unlock")
@@ -257,6 +278,53 @@ class PeopleManagementTest extends TestCase
 
         $this->assertSoftDeleted('people', ['id' => $personId]);
         $this->assertSoftDeleted('users', ['id' => $userId]);
+    }
+
+    public function test_administrator_cannot_create_privileged_account_or_change_another_administrator(): void
+    {
+        $admin = $this->admin();
+        $this->signIn($admin);
+
+        $this->postJson('/api/people', [...$this->validPerson(), 'role' => 'admin'])
+            ->assertUnprocessable()->assertJsonValidationErrors(['role']);
+
+        $otherAdmin = $this->admin();
+        $otherAdmin->roles()->sync(Role::query()->whereIn('slug', ['admin', 'member'])->pluck('id'));
+        $personId = $otherAdmin->person_id;
+        $this->patchJson("/api/people/{$personId}", ['status' => 'inactive'])->assertForbidden();
+        $this->deleteJson("/api/people/{$personId}")->assertForbidden();
+        $this->postJson("/api/people/{$personId}/unlock")->assertForbidden();
+        $this->assertSame('active', $otherAdmin->fresh()->status);
+    }
+
+    public function test_member_can_update_only_their_own_profile_and_welcome_data_is_returned(): void
+    {
+        $member = User::factory()->create();
+        $member->roles()->sync([Role::query()->where('slug', 'member')->value('id')]);
+        $this->signIn($member);
+
+        $this->getJson('/api/user')->assertOk()
+            ->assertJsonPath('data.user.profile.identification', $member->person->identification)
+            ->assertJsonPath('data.user.failed_login_attempts', 0);
+
+        $this->patchJson('/api/profile', ['first_name' => 'Lucía', 'birth_date' => '1998-03-02'])
+            ->assertOk()->assertJsonPath('data.user.profile.first_name', 'Lucía')
+            ->assertJsonPath('data.user.profile.birth_date', '1998-03-02');
+        $this->assertDatabaseHas('audit_events', ['event_type' => 'profile.updated', 'result' => 'success']);
+
+        $this->patchJson('/api/profile', ['status' => 'inactive', 'role' => 'admin'])
+            ->assertUnprocessable()->assertJsonValidationErrors(['status', 'role']);
+        $this->assertSame('active', $member->fresh()->status);
+        $this->assertSame('member', $member->fresh()->roles()->value('slug'));
+    }
+
+    public function test_account_password_rejects_whitespace(): void
+    {
+        $admin = $this->admin();
+        $this->signIn($admin);
+
+        $this->postJson('/api/people', [...$this->validPerson(), 'password' => 'Strong Pass123!'])
+            ->assertUnprocessable()->assertJsonValidationErrors(['password']);
     }
 
     private function admin(): User

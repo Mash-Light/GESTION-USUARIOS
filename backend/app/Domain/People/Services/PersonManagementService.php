@@ -50,6 +50,7 @@ class PersonManagementService
             if (! $user) {
                 throw (new ModelNotFoundException)->setModel(User::class);
             }
+            $this->assertManageableMember($user);
             if ($request->user()->is($user)) {
                 abort(409, 'No puedes cambiar tu propia cuenta desde este formulario.');
             }
@@ -106,6 +107,7 @@ class PersonManagementService
             if (! $user) {
                 throw (new ModelNotFoundException)->setModel(User::class);
             }
+            $this->assertManageableMember($user);
             if ($request->user()->is($user)) {
                 abort(409, 'No puedes eliminar tu propia cuenta.');
             }
@@ -126,6 +128,7 @@ class PersonManagementService
             if (! $user) {
                 throw (new ModelNotFoundException)->setModel(User::class);
             }
+            $this->assertManageableMember($user);
             if ($request->user()->is($user)) {
                 abort(409, 'No puedes desbloquear tu propia cuenta desde este formulario.');
             }
@@ -159,6 +162,13 @@ class PersonManagementService
     {
         $user->activeSession()->delete();
         DB::table('sessions')->where('user_id', $user->id)->delete();
+    }
+
+    private function assertManageableMember(User $user): void
+    {
+        if ($user->roles()->count() !== 1 || ! $user->roles()->where('slug', 'member')->exists()) {
+            abort(403, 'Las cuentas administrativas están protegidas y no se pueden modificar aquí.');
+        }
     }
 
     private function assertUnique(string $table, string $column, string $value, string $field, ?int $exceptId = null): void

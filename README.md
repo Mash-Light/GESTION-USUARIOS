@@ -53,10 +53,11 @@ Las pruebas automatizadas requieren una base separada configurada como `users_ap
 - Hecho: migraciones PostgreSQL para personas, usuarios, roles, permisos, sesiones, auditoria e importaciones; restricciones e indices; datos sinteticos de demostracion.
 - Hecho: login por usuario/correo, contador y bloqueo al tercer fallo, sesion unica, logout, middleware de sesion y endpoints de recuperacion.
 - Hecho: pantalla responsive de login, recuperacion, gestion de personas/cuentas y carga CSV/XLSX con busqueda, filtros, orden, paginacion, bloqueo administrativo, baja logica y reporte por fila.
+- Hecho: bienvenida con datos personales, último acceso e intentos fallidos; cada persona puede editar sus datos permitidos. El servidor protege campos de acceso y evita que la administración altere otras cuentas administrativas.
 - Hecho: middleware de permisos y menu leido desde la base de datos; auditoria para altas, cambios, bajas y desbloqueos.
 - Hecho: dashboard autorizado por permiso, con resumen de cuentas, sesiones, intentos fallidos y actividad reciente; los indicadores principales los calcula una funcion SQL de PostgreSQL.
 - Hecho: índices GIN trigram para búsqueda parcial y comparación reproducible `EXPLAIN ANALYZE` entre el filtro original y el plan con índices en una transacción de prueba, documentada en `docs/performance.md`.
-- Pendiente: repetir la medición con el hardware de despliegue y recoger evidencia visual final.
+- Hecho: prueba visual de bienvenida y edición de perfil en escritorio y móvil; se comprobó que no hay desbordamiento horizontal y que cerrar sesión sigue disponible en móvil. La medición local reproducible y su límite frente al hardware de despliegue están en `docs/performance.md`.
 
 ## Ramas y verificacion antes de integrar
 
@@ -67,7 +68,7 @@ Las pruebas automatizadas requieren una base separada configurada como `users_ap
 - `.github/workflows/ci.yml` ejecuta en pull requests hacia `develop` y `main`: formato PHP con Pint, pruebas Laravel/PostgreSQL y lint/build de React.
 - GitHub protege `develop` y `main`: exige pull request y ambos checks aprobados, requiere que la rama de destino este actualizada y aplica la regla tambien a administradores. Las ramas no permiten borrado ni force push.
 
-El PR #1 ya se integró en `develop`. Las siguientes mejoras parten de esa rama y se integran mediante nuevos PR; `main` se actualiza en un PR separado cuando `develop` esté listo.
+Los PR #1–#5 ya se integraron en `develop`. Las siguientes mejoras parten de esa rama y se integran mediante nuevos PR; `main` se actualiza en un PR separado cuando `develop` esté listo.
 
 ### Preparacion en Linux
 

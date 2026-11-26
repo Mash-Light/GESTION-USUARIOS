@@ -49,7 +49,7 @@ export default function App() {
     return <main className="session-loading-screen"><p role="status">Verificando tu sesión…</p></main>
   }
 
-  if (user) return <Workspace navigation={navigation} onLogout={handleLogout} user={user} />
+  if (user) return <Workspace navigation={navigation} onLogout={handleLogout} onUserUpdated={setUser} user={user} />
 
   return (
     <main className="auth-layout">

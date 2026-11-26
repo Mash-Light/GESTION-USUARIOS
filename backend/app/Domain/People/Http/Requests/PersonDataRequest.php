@@ -40,9 +40,9 @@ abstract class PersonDataRequest extends FormRequest
             'identification' => [$updating ? 'sometimes' : 'required', 'string', 'regex:/^(?!.*([0-9])\\1{3})[0-9]{10}$/'],
             'birth_date' => ['sometimes', 'nullable', 'date', 'before:today'],
             'username' => [$updating ? 'sometimes' : 'required', 'string', 'min:8', 'max:20', 'regex:/^(?=.*[A-Z])(?=.*[0-9])[A-Za-z0-9]+$/'],
-            'password' => [$updating ? 'sometimes' : 'required', 'string', Password::min(10)->mixedCase()->numbers()->symbols()],
+            'password' => [$updating ? 'sometimes' : 'required', 'string', 'not_regex:/\s/', Password::min(10)->mixedCase()->numbers()->symbols()],
             'status' => ['sometimes', 'in:active,inactive'],
-            'role' => [$updating ? 'sometimes' : 'required', 'string', 'exists:roles,slug'],
+            'role' => [$updating ? 'sometimes' : 'required', 'string', 'in:member'],
         ];
     }
 

@@ -17,7 +17,7 @@ class ResetPasswordRequest extends FormRequest
         return [
             'email' => ['required', 'string', 'email:rfc', 'max:254'],
             'token' => ['required', 'string', 'max:255'],
-            'password' => ['required', 'string', 'max:255', Password::min(10)->mixedCase()->numbers()->symbols(), 'confirmed'],
+            'password' => ['required', 'string', 'max:255', 'not_regex:/\s/', Password::min(10)->mixedCase()->numbers()->symbols(), 'confirmed'],
         ];
     }
 }

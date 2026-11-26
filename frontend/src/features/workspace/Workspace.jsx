@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import PeopleManagementPage from '../people/PeopleManagementPage.jsx'
 import DashboardPage from '../dashboard/DashboardPage.jsx'
 import ImportPage from '../imports/ImportPage.jsx'
+import ProfilePage from './ProfilePage.jsx'
 import './Workspace.css'
 
 const routeLabels = {
@@ -24,7 +25,7 @@ function DefaultPage({ route, user }) {
   )
 }
 
-export default function Workspace({ navigation, onLogout, user }) {
+export default function Workspace({ navigation, onLogout, onUserUpdated, user }) {
   const defaultRoute = useMemo(() => navigation.find((item) => item.route_name === 'users.index')?.route_name
     ?? navigation.find((item) => item.route_name === 'welcome')?.route_name
     ?? navigation[0]?.route_name
@@ -89,7 +90,9 @@ export default function Workspace({ navigation, onLogout, user }) {
             ? <DashboardPage user={user} />
             : activeRoute === 'imports.create' && user.permissions?.includes('imports.manage')
               ? <ImportPage />
-            : <DefaultPage route={activeRoute} user={user} />}
+            : activeRoute === 'welcome' && user.permissions?.includes('profile.view')
+              ? <ProfilePage user={user} onUserUpdated={onUserUpdated} />
+              : <DefaultPage route={activeRoute} user={user} />}
       </main>
     </div>
   )
