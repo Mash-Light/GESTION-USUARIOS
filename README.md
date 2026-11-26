@@ -2,7 +2,7 @@
 
 Aplicacion de prueba tecnica para administrar personas, usuarios, sesiones y permisos con una API REST en Laravel y una SPA en React.
 
-> Estado: autenticacion segura, gestion de personas/cuentas, dashboard e importacion CSV/XLSX implementados. La evidencia de rendimiento está documentada para la base de demostracion; se recomienda ampliar la medicion con un volumen representativo.
+> Estado: autenticacion segura, gestion de personas/cuentas, dashboard e importacion CSV/XLSX implementados. La búsqueda se midió en una base de prueba con 200.000 filas sintéticas; antes de desplegar conviene repetir la medición con datos y hardware representativos.
 
 ## Objetivos de la prueba
 
@@ -55,8 +55,8 @@ Las pruebas automatizadas requieren una base separada configurada como `users_ap
 - Hecho: pantalla responsive de login, recuperacion, gestion de personas/cuentas y carga CSV/XLSX con busqueda, filtros, orden, paginacion, bloqueo administrativo, baja logica y reporte por fila.
 - Hecho: middleware de permisos y menu leido desde la base de datos; auditoria para altas, cambios, bajas y desbloqueos.
 - Hecho: dashboard autorizado por permiso, con resumen de cuentas, sesiones, intentos fallidos y actividad reciente; los indicadores principales los calcula una funcion SQL de PostgreSQL.
-- Hecho: índices GIN trigram para búsqueda parcial y procedimiento reproducible `EXPLAIN ANALYZE`; la medición del conjunto pequeño de demostración está en `docs/performance.md`.
-- Pendiente: repetir la medición de rendimiento con un volumen representativo mayor y recoger evidencia visual final.
+- Hecho: índices GIN trigram para búsqueda parcial y comparación reproducible `EXPLAIN ANALYZE` entre el filtro original y el plan con índices en una transacción de prueba, documentada en `docs/performance.md`.
+- Pendiente: repetir la medición con el hardware de despliegue y recoger evidencia visual final.
 
 ## Ramas y verificacion antes de integrar
 

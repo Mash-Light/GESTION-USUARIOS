@@ -23,7 +23,10 @@ foreach ($statements as $statement) {
         continue;
     }
 
-    $rows = DB::select($statement);
+    $bindings = str_contains($statement, ':term')
+        ? ['term' => '%'.(string) env('EXPLAIN_SEARCH_TERM', 'and').'%']
+        : [];
+    $rows = DB::select($statement, $bindings);
 
     foreach ($rows as $row) {
         echo $row->{'QUERY PLAN'} ?? json_encode($row, JSON_THROW_ON_ERROR), PHP_EOL;

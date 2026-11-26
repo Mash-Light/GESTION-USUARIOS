@@ -10,6 +10,7 @@ use App\Domain\People\Services\PersonManagementService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class PeopleController extends Controller
@@ -41,12 +42,24 @@ class PeopleController extends Controller
             ->when(isset($filters['status']), fn ($builder) => $builder->where('managed_users.status', $filters['status']))
             ->when(! empty($filters['search']), function ($builder) use ($filters): void {
                 $term = '%'.mb_strtolower(trim($filters['search'])).'%';
-                $builder->where(function ($nested) use ($term): void {
-                    $nested->whereRaw("LOWER(COALESCE(people.first_name, '') || ' ' || COALESCE(people.middle_names, '') || ' ' || COALESCE(people.first_surname, '') || ' ' || COALESCE(people.second_surname, '')) LIKE ?", [$term])
-                        ->orWhereRaw('LOWER(people.identification) LIKE ?', [$term])
-                        ->orWhereRaw('LOWER(managed_users.username) LIKE ?', [$term])
-                        ->orWhereRaw('LOWER(managed_users.email) LIKE ?', [$term]);
-                });
+                $matchingPeople = DB::table('people')
+                    ->select('id')
+                    ->whereNull('deleted_at')
+                    ->whereRaw("LOWER(COALESCE(first_name, '') || ' ' || COALESCE(middle_names, '') || ' ' || COALESCE(first_surname, '') || ' ' || COALESCE(second_surname, '')) LIKE ?", [$term])
+                    ->unionAll(DB::table('people')
+                        ->select('id')
+                        ->whereNull('deleted_at')
+                        ->whereRaw('LOWER(identification) LIKE ?', [$term]))
+                    ->unionAll(DB::table('users')
+                        ->select('person_id as id')
+                        ->whereNull('deleted_at')
+                        ->whereRaw('LOWER(username) LIKE ?', [$term]))
+                    ->unionAll(DB::table('users')
+                        ->select('person_id as id')
+                        ->whereNull('deleted_at')
+                        ->whereRaw('LOWER(email) LIKE ?', [$term]));
+
+                $builder->whereIn('people.id', $matchingPeople);
             });
 
         $sort = $filters['sort'] ?? 'name';
