@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Domain\Auth\Models\ActiveSession;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
@@ -63,6 +64,55 @@ class AuthenticationTest extends TestCase
         ])->assertStatus(409);
 
         $this->assertSame(1, ActiveSession::query()->where('user_id', $user->id)->count());
+    }
+
+    public function test_an_expired_active_session_is_rejected_by_protected_endpoints(): void
+    {
+        $user = User::factory()->create();
+        $login = $this->postJson('/api/login', [
+            'login' => $user->username,
+            'password' => 'Password1!',
+        ])->assertOk();
+
+        $sessionCookie = $login->getCookie(config('session.cookie'));
+        $this->assertNotNull($sessionCookie);
+        DB::table('active_sessions')->where('user_id', $user->id)->update([
+            'expires_at' => now()->subSecond(),
+        ]);
+
+        $this->withCredentials()->withCookie(config('session.cookie'), $sessionCookie->getValue())
+            ->getJson('/api/user')
+            ->assertUnauthorized()
+            ->assertJsonPath('message', 'La sesión venció. Inicia sesión de nuevo.');
+
+        $this->assertDatabaseHas('audit_events', [
+            'event_type' => 'auth.session_rejected',
+            'subject_user_id' => $user->id,
+            'result' => 'failed',
+        ]);
+    }
+
+    public function test_authenticated_activity_extends_the_active_session_expiration(): void
+    {
+        $user = User::factory()->create();
+        $login = $this->postJson('/api/login', [
+            'login' => $user->username,
+            'password' => 'Password1!',
+        ])->assertOk();
+
+        $sessionCookie = $login->getCookie(config('session.cookie'));
+        $this->assertNotNull($sessionCookie);
+        $initialExpiration = ActiveSession::query()->where('user_id', $user->id)->value('expires_at');
+
+        $this->travel(90)->minutes();
+        $this->withCredentials()->withCookie(config('session.cookie'), $sessionCookie->getValue())
+            ->getJson('/api/user')
+            ->assertOk()
+            ->assertJsonPath('data.user.id', $user->id);
+
+        $updatedExpiration = ActiveSession::query()->where('user_id', $user->id)->value('expires_at');
+        $this->assertNotSame($initialExpiration, $updatedExpiration);
+        $this->assertTrue(now()->parse($updatedExpiration)->isAfter(now()->addMinutes(119)));
     }
 
     public function test_inactive_account_cannot_sign_in(): void
