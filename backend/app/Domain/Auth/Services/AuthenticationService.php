@@ -6,7 +6,6 @@ use App\Domain\Audit\Services\AuditLogger;
 use App\Domain\Auth\DTOs\LoginResult;
 use App\Domain\Auth\Models\ActiveSession;
 use App\Models\User;
-use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -16,9 +15,7 @@ use Illuminate\Support\Str;
 
 class AuthenticationService
 {
-    public function __construct(private readonly AuditLogger $auditLogger)
-    {
-    }
+    public function __construct(private readonly AuditLogger $auditLogger) {}
 
     public function login(Request $request, string $identifier, string $password): LoginResult
     {
@@ -151,6 +148,6 @@ class AuthenticationService
 
     private function rateLimitKey(Request $request, string $normalizedLogin): string
     {
-        return 'login:' . hash('sha256', $request->ip() . '|' . $normalizedLogin);
+        return 'login:'.hash('sha256', $request->ip().'|'.$normalizedLogin);
     }
 }

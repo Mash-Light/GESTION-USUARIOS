@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 
 class AuditLogger
 {
-    private const SAFE_METADATA_KEYS = ['reason', 'login_type', 'changed_fields'];
+    private const SAFE_METADATA_KEYS = ['reason', 'login_type', 'changed_fields', 'batch_id', 'total_rows', 'success_rows', 'error_rows'];
 
     public function record(
         Request $request,

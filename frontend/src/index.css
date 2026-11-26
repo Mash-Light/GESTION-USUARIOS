@@ -21,8 +21,10 @@
   --radius: 12px;
 }
 
+.session-loading-screen { display: grid; min-height: 100svh; place-items: center; color: var(--muted); background: var(--paper); font-size: 14px; }
+.session-loading-screen p { margin: 0; }
 * { box-sizing: border-box; }
-body { min-width: 320px; min-height: 100vh; margin: 0; }
+body { min-width: 0; min-height: 100vh; margin: 0; }
 button, input { font: inherit; }
 button { cursor: pointer; }
 

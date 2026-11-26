@@ -4,6 +4,7 @@ namespace App\Domain\Users\Services;
 
 use App\Domain\People\Models\Person;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class GeneratedEmail
@@ -13,17 +14,21 @@ class GeneratedEmail
         $firstInitial = $this->letters($person->first_name)[0] ?? '';
         $surname = $this->letters($person->first_surname);
         $secondInitial = $this->letters($person->second_surname)[0] ?? '';
-        $base = Str::lower($firstInitial . $surname . $secondInitial);
+        $base = Str::lower($firstInitial.$surname.$secondInitial);
 
         if ($base === '') {
             throw new \InvalidArgumentException('No se puede generar un correo con nombres vacíos.');
         }
 
+        if (DB::getDriverName() === 'pgsql' && DB::transactionLevel() > 0) {
+            DB::select('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', ['generated-email:'.$base]);
+        }
+
         $domain = Str::lower((string) config('users.email_domain', 'mail.com'));
 
         for ($suffix = 0; $suffix < 10000; $suffix++) {
-            $localPart = $base . ($suffix === 0 ? '' : $suffix);
-            $candidate = $localPart . '@' . $domain;
+            $localPart = $base.($suffix === 0 ? '' : $suffix);
+            $candidate = $localPart.'@'.$domain;
 
             $exists = User::withTrashed()
                 ->whereRaw('LOWER(email) = ?', [$candidate])
