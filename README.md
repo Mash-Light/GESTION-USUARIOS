@@ -48,6 +48,24 @@ No se deben compartir archivos `.env` ni credenciales reales. Para levantarlo en
 
 Las pruebas automatizadas requieren una base separada configurada como `users_app_test`; nunca apuntes esa variable a una base con datos que quieras conservar. Ejecuta `php artisan test` dentro de `backend`.
 
+### Correo y recuperación de contraseña
+
+Por defecto, `.env.example` usa `MAIL_MAILER=log`: Laravel escribe la notificación en el log y no envía un mensaje externo. Para probar entrega real, configura un servidor SMTP en `backend/.env` con los datos de tu proveedor, por ejemplo:
+
+```dotenv
+FRONTEND_URL=http://127.0.0.1:5174
+MAIL_MAILER=smtp
+MAIL_SCHEME=smtp
+MAIL_HOST=smtp.example.com
+MAIL_PORT=587
+MAIL_USERNAME=usuario-smtp
+MAIL_PASSWORD=credencial-smtp
+MAIL_FROM_ADDRESS=cuenta@example.com
+MAIL_FROM_NAME="${APP_NAME}"
+```
+
+Sustituye los valores de ejemplo por credenciales propias, conserva `.env` fuera de Git y usa el mecanismo de credenciales de aplicación que recomiende tu proveedor. El formulario de alta no solicita correo: la aplicación lo genera con la inicial del nombre, el primer apellido y la inicial del segundo apellido, agregando sufijo numérico si ya existe. El dominio se configura con `USER_EMAIL_DOMAIN` (por defecto, `mail.com`). La cuenta necesita tener ese correo generado para recibir el enlace de recuperación.
+
 ## Estado de implementacion
 
 - Hecho: migraciones PostgreSQL para personas, usuarios, roles, permisos, sesiones, auditoria e importaciones; restricciones e indices; datos sinteticos de demostracion.
@@ -68,7 +86,7 @@ Las pruebas automatizadas requieren una base separada configurada como `users_ap
 - `.github/workflows/ci.yml` ejecuta en pull requests hacia `develop` y `main`: formato PHP con Pint, pruebas Laravel/PostgreSQL y lint/build de React.
 - GitHub protege `develop` y `main`: exige pull request y ambos checks aprobados, requiere que la rama de destino este actualizada y aplica la regla tambien a administradores. Las ramas no permiten borrado ni force push.
 
-Los PR #1–#5 ya se integraron en `develop`. Las siguientes mejoras parten de esa rama y se integran mediante nuevos PR; `main` se actualiza en un PR separado cuando `develop` esté listo.
+Los PR #1–#6 y #8 están integrados en `develop`; el PR #8 incorpora el rediseño React/TypeScript/Tailwind y pasó los checks de Laravel/PostgreSQL y React. Las nuevas mejoras deben partir de `develop` y entrar mediante PR; `main` se actualiza en un PR separado cuando la versión esté lista.
 
 ### Preparacion en Linux
 
