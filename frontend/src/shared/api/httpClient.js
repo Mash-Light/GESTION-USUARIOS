@@ -42,3 +42,11 @@ export async function request(path, options = {}) {
 export function initializeCsrfCookie() {
   return request('/sanctum/csrf-cookie')
 }
+
+export function hasCsrfCookie() {
+  return Boolean(readCookie('XSRF-TOKEN'))
+}
+
+export function clearCsrfCookie() {
+  document.cookie = 'XSRF-TOKEN=; Max-Age=0; Path=/; SameSite=Lax'
+}

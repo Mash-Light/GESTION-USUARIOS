@@ -1,4 +1,4 @@
-import { initializeCsrfCookie, request } from '../../shared/api/httpClient.js'
+import { clearCsrfCookie, hasCsrfCookie, initializeCsrfCookie, request } from '../../shared/api/httpClient.js'
 
 export async function login({ login: identifier, password }) {
   await initializeCsrfCookie()
@@ -19,10 +19,18 @@ export async function requestPasswordReset(email) {
 }
 
 export async function logout() {
-  return request('/api/logout', { method: 'POST' })
+  const response = await request('/api/logout', { method: 'POST' })
+  clearCsrfCookie()
+  return response
 }
 
 export async function currentUser() {
+  if (!hasCsrfCookie()) return null
   const response = await request('/api/user')
   return response.data?.user ?? response.data ?? response
+}
+
+export async function currentNavigation() {
+  const response = await request('/api/navigation')
+  return response.data ?? []
 }

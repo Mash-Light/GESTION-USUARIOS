@@ -11,9 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureActiveSession
 {
-    public function __construct(private readonly AuditLogger $auditLogger)
-    {
-    }
+    public function __construct(private readonly AuditLogger $auditLogger) {}
 
     public function handle(Request $request, Closure $next): Response
     {

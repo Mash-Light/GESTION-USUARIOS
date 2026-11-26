@@ -6,9 +6,7 @@ use App\Models\User;
 
 final readonly class LoginResult
 {
-    private function __construct(public string $status, public ?User $user = null)
-    {
-    }
+    private function __construct(public string $status, public ?User $user = null) {}
 
     public static function success(User $user): self
     {

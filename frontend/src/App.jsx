@@ -1,20 +1,33 @@
 import { useEffect, useState } from 'react'
 import './App.css'
-import { currentUser, logout } from './features/auth/authService.js'
-import AuthenticatedPanel from './features/auth/AuthenticatedPanel.jsx'
+import { currentNavigation, currentUser, logout } from './features/auth/authService.js'
 import LoginPage from './features/auth/LoginPage.jsx'
+import Workspace from './features/workspace/Workspace.jsx'
 import BrandMark from './shared/components/BrandMark.jsx'
 
 export default function App() {
   const [user, setUser] = useState(null)
-  const [logoutError, setLogoutError] = useState('')
   const [checkingSession, setCheckingSession] = useState(true)
+  const [navigation, setNavigation] = useState([])
+
+  async function activateSession(nextUser) {
+    setUser(nextUser)
+
+    try {
+      setNavigation(await currentNavigation())
+    } catch {
+      setNavigation([])
+    }
+  }
 
   useEffect(() => {
     let mounted = true
 
     currentUser()
-      .then((current) => { if (mounted) setUser(current) })
+      .then(async (current) => {
+        if (!mounted) return
+        await activateSession(current)
+      })
       .catch(() => { if (mounted) setUser(null) })
       .finally(() => { if (mounted) setCheckingSession(false) })
 
@@ -22,15 +35,16 @@ export default function App() {
   }, [])
 
   async function handleLogout() {
-    setLogoutError('')
-
-    try {
-      await logout()
-      setUser(null)
-    } catch (error) {
-      setLogoutError(error.message)
-    }
+    await logout()
+    setUser(null)
+    setNavigation([])
   }
+
+  if (checkingSession) {
+    return <main className="session-loading-screen"><p role="status">Verificando tu sesión…</p></main>
+  }
+
+  if (user) return <Workspace navigation={navigation} onLogout={handleLogout} user={user} />
 
   return (
     <main className="auth-layout">
@@ -63,14 +77,7 @@ export default function App() {
           <span>Portal de administración</span>
         </div>
 
-        <div className="form-content">
-          {checkingSession
-            ? <p className="session-checking" role="status">Verificando tu sesión…</p>
-            : user
-            ? <AuthenticatedPanel onLogout={handleLogout} user={user} />
-            : <LoginPage onAuthenticated={setUser} />}
-          {logoutError && <p className="form-message form-message-error" role="alert">{logoutError}</p>}
-        </div>
+        <div className="form-content"><LoginPage onAuthenticated={activateSession} /></div>
 
         <footer className="form-panel-footer">
           <span>Acceso monitoreado</span>

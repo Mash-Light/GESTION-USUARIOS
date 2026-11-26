@@ -52,8 +52,19 @@ Las pruebas automatizadas requieren una base separada configurada como `users_ap
 
 - Hecho: migraciones PostgreSQL para personas, usuarios, roles, permisos, sesiones, auditoria e importaciones; restricciones e indices; datos sinteticos de demostracion.
 - Hecho: login por usuario/correo, contador y bloqueo al tercer fallo, sesion unica, logout, middleware de sesion y endpoints de recuperacion.
-- Hecho: pantalla responsive de login y solicitud de recuperacion.
-- Pendiente: CRUD de personas/cuentas, desbloqueo administrativo, policies y menu por permisos, filtros/paginacion, importacion CSV/XLSX, dashboard y evidencias finales.
+- Hecho: pantalla responsive de login, recuperacion y gestion de personas/cuentas con busqueda, filtros, orden, paginacion, bloqueo administrativo y baja logica.
+- Hecho: middleware de permisos y menu leido desde la base de datos; auditoria para altas, cambios, bajas y desbloqueos.
+- Pendiente: importacion CSV/XLSX, dashboard conectado a la funcion PostgreSQL, EXPLAIN ANALYZE documentado y evidencias finales.
+
+## Ramas y verificacion antes de integrar
+
+- `main` conserva la version estable entregada.
+- `develop` es la rama de integracion.
+- Las nuevas tareas parten de `develop` en ramas `feature/*` o `fix/*` y se proponen con pull request hacia `develop`.
+- La integracion de `develop` a `main` se hace en otro pull request cuando la version este lista.
+- `.github/workflows/ci.yml` ejecuta en pull requests hacia `develop` y `main`: formato PHP con Pint, pruebas Laravel/PostgreSQL y lint/build de React.
+
+Para impedir merges cuando un job falle, activa en GitHub una regla para `develop` y `main`: exigir pull request y los checks `Laravel and PostgreSQL` y `React build and lint` antes de permitir el merge. GitHub solo permite marcar como requeridos checks que ya hayan ejecutado al menos una vez.
 
 Las contrasenas de demostracion solo se documentaran cuando el flujo de acceso este terminado; deben cambiarse en cualquier entorno compartido.
 
@@ -71,3 +82,4 @@ Las contrasenas de demostracion solo se documentaran cuando el flujo de acceso e
 
 - [Arquitectura y decisiones](docs/architecture.md)
 - [Matriz de requisitos y etapas](docs/requirements.md)
+- [Trazabilidad de la rúbrica de 100 puntos](docs/rubric.md)
