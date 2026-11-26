@@ -68,7 +68,7 @@ jobs:
         run: php artisan test
 
   frontend:
-    name: React build and lint
+    name: React typecheck, lint and build
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -84,6 +84,10 @@ jobs:
       - name: Install npm dependencies
         working-directory: frontend
         run: npm ci
+
+      - name: Check TypeScript types
+        working-directory: frontend
+        run: npm run typecheck
 
       - name: Run linter
         working-directory: frontend

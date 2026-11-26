@@ -1,13 +1,20 @@
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
+import { fileURLToPath } from 'node:url'
+
+const apiTarget = process.env.VITE_API_PROXY_TARGET ?? 'http://127.0.0.1:8000'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+  },
   server: {
     proxy: {
-      '/api': 'http://127.0.0.1:8000',
-      '/sanctum': 'http://127.0.0.1:8000',
+      '/api': apiTarget,
+      '/sanctum': apiTarget,
     },
   },
 })

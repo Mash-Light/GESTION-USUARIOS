@@ -1,20 +1,63 @@
 import { useDeferredValue, useEffect, useRef, useState } from 'react'
-import { createPerson, deletePerson, listPeople, unlockPerson, updatePerson } from './peopleService.js'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import type { Resolver } from 'react-hook-form'
+import type { ManagedPerson, PersonPayload } from './people.types'
+import { ApiError } from '../../shared/api/httpClient'
+import type { AuthUser } from '../auth/auth.types'
+import type { ChangeEvent } from 'react'
+import { createPerson, deletePerson, listPeople, unlockPerson, updatePerson } from './peopleService'
 import './PeopleManagementPage.css'
 
-const blankPerson = {
+type PersonFormValues = Omit<PersonPayload, 'password'> & { password: string }
+
+const blankPerson: PersonFormValues = {
   first_name: '', middle_names: '', first_surname: '', second_surname: '',
   identification: '', birth_date: '', username: '', password: '', role: 'member', status: 'active',
 }
 
-function dateLabel(value) {
+const peopleColumns = [
+  { accessorKey: 'first_name', id: 'name', header: 'Persona', enableSorting: true },
+  { accessorKey: 'identification', id: 'identification', header: 'Identificación', enableSorting: true },
+  { accessorKey: 'user.username', id: 'username', header: 'Usuario / correo', enableSorting: true },
+  { id: 'role', header: 'Rol', enableSorting: false },
+  { id: 'status', header: 'Estado', enableSorting: false },
+  { id: 'last_login', header: 'Último acceso', enableSorting: false },
+  { id: 'actions', header: 'Acciones', enableSorting: false },
+]
+
+function personSchema(isEditing: boolean) {
+  const personName = (maximum: number) => z.string().trim().min(1, 'Este campo es obligatorio.').max(maximum).regex(/^[\p{L}\p{M}][\p{L}\p{M}'’ -]*$/u, 'Escribe un nombre válido.')
+  return z.object({
+    first_name: personName(60),
+    middle_names: z.string().trim().max(120).refine((value) => !value || /^[\p{L}\p{M}][\p{L}\p{M}'’ -]*$/u.test(value), 'Escribe un nombre válido.'),
+    first_surname: personName(60),
+    second_surname: personName(60),
+    identification: z.string().regex(/^(?!.*([0-9])\1{3})[0-9]{10}$/, 'Ingresa una identificación válida de 10 dígitos.'),
+    birth_date: z.string().refine((value) => !value || value < new Date().toISOString().slice(0, 10), 'La fecha debe ser anterior al día de hoy.'),
+    username: z.string().min(8, 'Usa al menos 8 caracteres.').max(20, 'Usa máximo 20 caracteres.').regex(/^(?=.*[A-Z])(?=.*[0-9])[A-Za-z0-9]+$/, 'Usa 8–20 caracteres, una mayúscula y un número.'),
+    password: isEditing ? z.string().optional() : z.string().min(10, 'Usa 10 caracteres o más.').regex(/^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s])\S+$/, 'Incluye mayúscula, minúscula, número y símbolo; sin espacios.'),
+    status: z.enum(['active', 'inactive']),
+    role: z.literal('member'),
+  }).superRefine((data, context) => {
+    if (isEditing && data.password) {
+      const valid = data.password.length >= 10 && /[A-Z]/.test(data.password) && /[a-z]/.test(data.password) && /[0-9]/.test(data.password) && /[^A-Za-z0-9\s]/.test(data.password) && !/\s/.test(data.password)
+      if (!valid) context.addIssue({ code: 'custom', path: ['password'], message: 'Incluye mayúscula, minúscula, número y símbolo; mínimo 10 caracteres y sin espacios.' })
+    }
+  })
+}
+
+function dateLabel(value: string | null) {
   if (!value) return 'Sin ingresos'
   return new Intl.DateTimeFormat('es-EC', { dateStyle: 'medium' }).format(new Date(value))
 }
 
-function PersonFormDialog({ person, onClose, onSaved }) {
-  const dialogRef = useRef(null)
-  const [form, setForm] = useState(person ? {
+function PersonFormDialog({ person, onClose, onSaved }: { person: ManagedPerson | null; onClose: () => void; onSaved: () => Promise<void> }) {
+  const dialogRef = useRef<HTMLElement>(null)
+  const defaultValues: PersonFormValues = person ? {
     first_name: person.first_name,
     middle_names: person.middle_names ?? '',
     first_surname: person.first_surname,
@@ -23,57 +66,55 @@ function PersonFormDialog({ person, onClose, onSaved }) {
     birth_date: person.birth_date ?? '',
     username: person.user.username,
     password: '',
-    status: person.user.status,
-  } : blankPerson)
-  const [errors, setErrors] = useState({})
+    status: person.user.status === 'active' ? 'active' : 'inactive',
+    role: 'member' as const,
+  } : blankPerson
+  const { register, handleSubmit, setError, clearErrors, formState: { errors, isSubmitting: saving } } = useForm<PersonFormValues>({
+    resolver: zodResolver(personSchema(Boolean(person))) as Resolver<PersonFormValues>,
+    defaultValues,
+  })
+  const saveMutation = useMutation({
+    mutationFn: (data: PersonPayload) => person ? updatePerson(person.id, data) : createPerson(data),
+  })
   const [formError, setFormError] = useState('')
-  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     const previousFocus = document.activeElement
-    dialogRef.current?.querySelector('input, select, button')?.focus()
+    dialogRef.current?.querySelector<HTMLElement>('input, select, button')?.focus()
     return () => {
       if (previousFocus instanceof HTMLElement) previousFocus.focus()
     }
   }, [])
 
-  function updateField(event) {
-    setForm((current) => ({ ...current, [event.target.name]: event.target.value }))
-    setErrors((current) => ({ ...current, [event.target.name]: undefined }))
-    setFormError('')
-  }
-
-  async function submit(event) {
-    event.preventDefault()
-    setSaving(true)
-    setErrors({})
+  async function submit(form: PersonFormValues) {
+    clearErrors()
     setFormError('')
 
-    const data = { ...form }
+    const data: PersonPayload = { ...form }
     if (person && !data.password) delete data.password
 
     try {
-      if (person) await updatePerson(person.id, data)
-      else await createPerson(data)
+      await saveMutation.mutateAsync(data)
       await onSaved()
     } catch (error) {
-      setErrors(error.errors ?? {})
-      setFormError(error.status === 409
+      const apiError = error instanceof ApiError ? error : new Error('No se pudo guardar la cuenta.')
+      Object.entries(error instanceof ApiError ? error.errors : {}).forEach(([field, messages]) => {
+        if (field in defaultValues && messages?.[0]) setError(field as keyof PersonFormValues, { type: 'server', message: messages[0] })
+      })
+      setFormError(error instanceof ApiError && error.status === 409
         ? error.message
-        : error.status === 422
+        : error instanceof ApiError && error.status === 422
           ? 'Revisa los campos señalados antes de guardar.'
-          : error.message)
-    } finally {
-      setSaving(false)
+          : apiError.message)
     }
   }
 
-  function fieldError(name) {
-    const message = errors[name]?.[0]
+  function fieldError(name: keyof PersonFormValues) {
+    const message = errors[name]?.message
     return message ? <span className="people-field-error" id={`${name}-error`}>{message}</span> : null
   }
 
-  function input(name, label, { type = 'text', required = true, autoComplete, hint, maxLength } = {}) {
+  function input(name: keyof PersonFormValues, label: string, { type = 'text', required = true, autoComplete, hint, maxLength }: { type?: string; required?: boolean; autoComplete?: string; hint?: string; maxLength?: number } = {}) {
     return (
       <div className="people-form-field" key={name}>
         <label htmlFor={`person-${name}`}>{label}{required && <span aria-hidden="true"> *</span>}</label>
@@ -83,11 +124,9 @@ function PersonFormDialog({ person, onClose, onSaved }) {
           autoComplete={autoComplete}
           id={`person-${name}`}
           maxLength={maxLength}
-          name={name}
-          onChange={updateField}
+          {...register(name)}
           required={required}
           type={type}
-          value={form[name] ?? ''}
         />
         {hint && !errors[name] && <span className="people-field-hint" id={`${name}-hint`}>{hint}</span>}
         {fieldError(name)}
@@ -107,8 +146,8 @@ function PersonFormDialog({ person, onClose, onSaved }) {
           const focusable = [...event.currentTarget.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled)')]
           const first = focusable[0]
           const last = focusable.at(-1)
-          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
-          if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); (last as HTMLElement).focus() }
+          if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); (first as HTMLElement).focus() }
         }}
         ref={dialogRef}
         role="dialog"
@@ -121,7 +160,7 @@ function PersonFormDialog({ person, onClose, onSaved }) {
           <button aria-label="Cerrar formulario" className="people-icon-button" onClick={onClose} type="button">×</button>
         </header>
 
-        <form className="people-dialog-form" onSubmit={submit}>
+        <form className="people-dialog-form" onSubmit={handleSubmit(submit)} noValidate>
           <div aria-hidden="true" className="people-form-section-label">DATOS PERSONALES</div>
           <div className="people-form-grid">
             {input('first_name', 'Primer nombre', { maxLength: 60, autoComplete: 'given-name' })}
@@ -142,7 +181,7 @@ function PersonFormDialog({ person, onClose, onSaved }) {
             <div className="people-form-field people-role-note"><span>Rol de la cuenta</span><strong>Usuario</strong><small>Las cuentas administrativas están protegidas.</small></div>
             <div className="people-form-field">
               <label htmlFor="person-status">Estado *</label>
-              <select id="person-status" name="status" onChange={updateField} required value={form.status}>
+              <select id="person-status" {...register('status')} required>
                 <option value="active">Activo</option>
                 <option value="inactive">Inactivo</option>
               </select>
@@ -164,7 +203,7 @@ function PersonFormDialog({ person, onClose, onSaved }) {
   )
 }
 
-function DeleteDialog({ person, onCancel, onConfirm, busy }) {
+function DeleteDialog({ person, onCancel, onConfirm, busy }: { person: ManagedPerson; onCancel: () => void; onConfirm: () => void; busy: boolean }) {
   return (
     <div className="people-dialog-backdrop">
       <section aria-labelledby="delete-dialog-title" aria-modal="true" className="people-dialog people-confirm-dialog" role="alertdialog">
@@ -180,91 +219,107 @@ function DeleteDialog({ person, onCancel, onConfirm, busy }) {
   )
 }
 
-export default function PeopleManagementPage({ user }) {
-  const [people, setPeople] = useState([])
-  const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 })
+export default function PeopleManagementPage({ user }: { user: AuthUser }) {
+  const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const deferredSearch = useDeferredValue(search)
   const [status, setStatus] = useState('')
   const [sort, setSort] = useState('name')
-  const [direction, setDirection] = useState('asc')
+  const [direction, setDirection] = useState<'asc' | 'desc'>('asc')
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
   const [pageError, setPageError] = useState('')
   const [notice, setNotice] = useState('')
-  const [editing, setEditing] = useState(null)
-  const [deleting, setDeleting] = useState(null)
-  const [busyId, setBusyId] = useState(null)
+  const [editing, setEditing] = useState<ManagedPerson | { create: true } | null>(null)
+  const [deleting, setDeleting] = useState<ManagedPerson | null>(null)
+  const [busyId, setBusyId] = useState<number | null>(null)
+  const deleteMutation = useMutation({ mutationFn: deletePerson })
+  const unlockMutation = useMutation({ mutationFn: unlockPerson })
+
+  const peopleQuery = useQuery({
+    queryKey: ['people', { search: deferredSearch, status, sort, direction, page, per_page: 10 }],
+    queryFn: ({ signal }) => listPeople({ search: deferredSearch, status, sort, direction, page, per_page: 10 }, { signal }),
+    placeholderData: keepPreviousData,
+  })
+  const people = peopleQuery.data?.people ?? []
+  const pagination = peopleQuery.data?.pagination ?? { current_page: page, last_page: 1, total: 0, per_page: 10 }
+  const loading = peopleQuery.isPending
+  const combinedError = pageError || peopleQuery.error?.message || ''
+  const sorting = [{ id: sort, desc: direction === 'desc' }]
+  // TanStack Table stores the controlled server-side state; React Compiler skips memoizing its table instance.
+  // eslint-disable-next-line react/incompatible-library
+  const table = useReactTable({
+    data: people,
+    columns: peopleColumns,
+    getCoreRowModel: getCoreRowModel(),
+    manualFiltering: true,
+    manualSorting: true,
+    manualPagination: true,
+    pageCount: pagination.last_page,
+    state: { sorting, pagination: { pageIndex: page - 1, pageSize: 10 } },
+    onSortingChange: (updater) => {
+      const next = typeof updater === 'function' ? updater(sorting) : updater
+      if (next[0]) {
+        setSort(next[0].id)
+        setDirection(next[0].desc ? 'desc' : 'asc')
+        setPage(1)
+      }
+    },
+    onPaginationChange: (updater) => {
+      const current = { pageIndex: page - 1, pageSize: 10 }
+      const next = typeof updater === 'function' ? updater(current) : updater
+      setPage(next.pageIndex + 1)
+    },
+  })
 
   async function refresh() {
-    setLoading(true)
-    try {
-      const result = await listPeople({ search: deferredSearch, status, sort, direction, page, per_page: 10 })
-      setPeople(result.people)
-      setPagination(result.pagination)
-      setPageError('')
-    } catch (error) {
-      setPageError(error.message)
-    } finally {
-      setLoading(false)
-    }
+    await queryClient.invalidateQueries({ queryKey: ['people'] })
   }
-
-  useEffect(() => {
-    const controller = new AbortController()
-    listPeople({ search: deferredSearch, status, sort, direction, page, per_page: 10 }, { signal: controller.signal })
-      .then((result) => {
-        setPeople(result.people)
-        setPagination(result.pagination)
-        setPageError('')
-      })
-      .catch((error) => { if (!controller.signal.aborted) setPageError(error.message) })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
-    return () => controller.abort()
-  }, [deferredSearch, status, sort, direction, page])
 
   async function saved() {
     setEditing(null)
     setNotice('Los cambios se guardaron correctamente.')
-    if (page !== 1) { setLoading(true); setPage(1) }
-    else await refresh()
+    if (page !== 1) setPage(1)
+    await refresh()
   }
 
   async function remove() {
-    setBusyId(deleting.id)
+    if (!deleting) return
+    const personToDelete = deleting
+    setBusyId(personToDelete.id)
     try {
-      await deletePerson(deleting.id)
+      await deleteMutation.mutateAsync(personToDelete.id)
       setDeleting(null)
+      setPageError('')
       setNotice('La cuenta se archivó correctamente.')
-      if (page > 1 && people.length === 1) { setLoading(true); setPage((current) => current - 1) }
-      else await refresh()
+      await refresh()
+      if (page > 1 && people.length === 1) setPage((current) => current - 1)
     } catch (error) {
-      setPageError(error.message)
+      setPageError(error instanceof Error ? error.message : 'No se pudo eliminar la cuenta.')
       setDeleting(null)
     } finally {
       setBusyId(null)
     }
   }
 
-  async function unlock(person) {
+  async function unlock(person: ManagedPerson) {
     setBusyId(person.id)
     setPageError('')
     try {
-      await unlockPerson(person.id)
+      await unlockMutation.mutateAsync(person.id)
+      setPageError('')
       setNotice(`La cuenta de ${person.first_name} quedó desbloqueada.`)
       await refresh()
     } catch (error) {
-      setPageError(error.message)
+      setPageError(error instanceof Error ? error.message : 'No se pudo desbloquear la cuenta.')
     } finally {
       setBusyId(null)
     }
   }
 
-  function changeSort(event) {
+  function changeSort(event: ChangeEvent<HTMLSelectElement>) {
     const [nextSort, nextDirection] = event.target.value.split(':')
-    setLoading(true)
     setSort(nextSort)
-    setDirection(nextDirection)
+    setDirection(nextDirection === 'desc' ? 'desc' : 'asc')
     setPage(1)
   }
 
@@ -290,10 +345,10 @@ export default function PeopleManagementPage({ user }) {
       <div className="people-toolbar">
         <label className="people-search" htmlFor="people-search-input">
           <span aria-hidden="true">⌕</span>
-          <input id="people-search-input" onChange={(event) => { setLoading(true); setSearch(event.target.value); setPage(1) }} placeholder="Buscar nombre, identificación, usuario…" type="search" value={search} />
+          <input id="people-search-input" onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Buscar nombre, identificación, usuario…" type="search" value={search} />
         </label>
         <label className="people-filter-label" htmlFor="people-status-filter">Estado
-          <select id="people-status-filter" onChange={(event) => { setLoading(true); setStatus(event.target.value); setPage(1) }} value={status}>
+          <select id="people-status-filter" onChange={(event) => { setStatus(event.target.value); setPage(1) }} value={status}>
             <option value="">Todos</option>
             <option value="active">Activos</option>
             <option value="inactive">Inactivos</option>
@@ -310,18 +365,18 @@ export default function PeopleManagementPage({ user }) {
       </div>
 
       {notice && <p className="people-notice" role="status"><span aria-hidden="true">✓</span>{notice}<button aria-label="Cerrar aviso" onClick={() => setNotice('')} type="button">×</button></p>}
-      {pageError && <p className="people-page-error" role="alert">{pageError}</p>}
+      {combinedError && <p className="people-page-error" role="alert">{combinedError}</p>}
 
-      <div aria-busy={loading} className="people-table-frame">
+      <div aria-busy={peopleQuery.isFetching} className="people-table-frame">
         <div className="people-table-scroll">
           <table className="people-table">
             <thead>
-              <tr><th scope="col">Persona</th><th scope="col">Identificación</th><th scope="col">Usuario / correo</th><th scope="col">Rol</th><th scope="col">Estado</th><th scope="col">Último acceso</th><th scope="col"><span className="visually-hidden">Acciones</span></th></tr>
+              {table.getHeaderGroups().map((group) => <tr key={group.id}>{group.headers.map((header) => <th key={header.id} scope="col">{header.isPlaceholder ? null : header.column.getCanSort() ? <button aria-label={`Ordenar por ${header.column.columnDef.header}`} className="inline-flex items-center gap-1 font-semibold hover:text-brand-700" onClick={header.column.getToggleSortingHandler()} type="button">{flexRender(header.column.columnDef.header, header.getContext())}{header.column.getIsSorted() === 'asc' ? '↑' : header.column.getIsSorted() === 'desc' ? '↓' : ''}</button> : flexRender(header.column.columnDef.header, header.getContext())}</th>)}</tr>)}
             </thead>
             <tbody>
-              {loading && <tr><td className="people-state-row" colSpan="7">Cargando cuentas…</td></tr>}
-              {!loading && people.map((person) => (
-                <tr key={person.id}>
+              {loading && <tr><td className="people-state-row" colSpan={7}>Cargando cuentas…</td></tr>}
+              {!loading && table.getRowModel().rows.map(({ original: person, id }) => (
+                <tr key={id}>
                   <td data-label="Persona"><div className="people-person-cell"><span className="people-row-avatar" aria-hidden="true">{person.first_name.slice(0, 1)}{person.first_surname.slice(0, 1)}</span><span><strong>{person.first_name} {person.middle_names} {person.first_surname} {person.second_surname}</strong><small>Cuenta #{person.user.id}</small></span></div></td>
                   <td data-label="Identificación" className="people-mono">{person.identification}</td>
                   <td data-label="Usuario / correo"><span className="people-account-cell"><strong>{person.user.username}</strong><small>{person.user.email}</small></span></td>
@@ -336,17 +391,17 @@ export default function PeopleManagementPage({ user }) {
                   </div></td>
                 </tr>
               ))}
-              {!loading && people.length === 0 && <tr><td className="people-state-row" colSpan="7"><span className="people-empty-mark" aria-hidden="true">⌕</span><strong>No encontramos cuentas</strong><span>Prueba otro término o crea una cuenta nueva.</span></td></tr>}
+              {!loading && people.length === 0 && <tr><td className="people-state-row" colSpan={7}><span className="people-empty-mark" aria-hidden="true">⌕</span><strong>No encontramos cuentas</strong><span>Prueba otro término o crea una cuenta nueva.</span></td></tr>}
             </tbody>
           </table>
         </div>
         <footer className="people-pagination">
           <span>Mostrando <strong>{pagination.total === 0 ? 0 : (pagination.current_page - 1) * pagination.per_page + 1}–{Math.min(pagination.current_page * pagination.per_page, pagination.total)}</strong> de <strong>{pagination.total}</strong></span>
-          <div><button aria-label="Página anterior" disabled={page <= 1 || loading} onClick={() => { setLoading(true); setPage((current) => current - 1) }} type="button">←</button><span>Página {pagination.current_page} de {pagination.last_page}</span><button aria-label="Página siguiente" disabled={page >= pagination.last_page || loading} onClick={() => { setLoading(true); setPage((current) => current + 1) }} type="button">→</button></div>
+          <div><button aria-label="Página anterior" disabled={!table.getCanPreviousPage() || loading} onClick={() => table.previousPage()} type="button">←</button><span>Página {pagination.current_page} de {pagination.last_page}</span><button aria-label="Página siguiente" disabled={!table.getCanNextPage() || loading} onClick={() => table.nextPage()} type="button">→</button></div>
         </footer>
       </div>
 
-      {editing && <PersonFormDialog onClose={() => setEditing(null)} onSaved={saved} person={editing.create ? null : editing} />}
+      {editing && <PersonFormDialog onClose={() => setEditing(null)} onSaved={saved} person={'create' in editing ? null : editing} />}
       {deleting && <DeleteDialog busy={busyId === deleting.id} onCancel={() => setDeleting(null)} onConfirm={remove} person={deleting} />}
     </section>
   )

@@ -1,12 +1,24 @@
 const apiBase = import.meta.env.VITE_API_URL ?? ''
 
-function readCookie(name) {
+export type ValidationErrors = Record<string, string[]>
+export interface ApiPayload<T = any> {
+  data?: T
+  message?: string
+  errors?: ValidationErrors
+  [key: string]: any
+}
+
+function readCookie(name: string): string | undefined {
   const prefix = `${name}=`
   return document.cookie.split('; ').find((cookie) => cookie.startsWith(prefix))?.slice(prefix.length)
 }
 
 export class ApiError extends Error {
-  constructor(message, { status, errors = {}, data = null } = {}) {
+  status?: number
+  errors: ValidationErrors
+  data: any
+
+  constructor(message: string, { status, errors = {}, data = null }: { status?: number; errors?: ValidationErrors; data?: any } = {}) {
     super(message)
     this.name = 'ApiError'
     this.status = status
@@ -15,7 +27,7 @@ export class ApiError extends Error {
   }
 }
 
-export async function request(path, options = {}) {
+export async function request(path: string, options: RequestInit = {}): Promise<ApiPayload> {
   const { headers: customHeaders = {}, ...requestOptions } = options
   const csrfToken = readCookie('XSRF-TOKEN')
   const isFormData = typeof FormData !== 'undefined' && requestOptions.body instanceof FormData
@@ -30,7 +42,7 @@ export async function request(path, options = {}) {
     },
   })
 
-  const payload = response.status === 204 ? null : await response.json().catch(() => null)
+  const payload: ApiPayload | null = response.status === 204 ? null : await response.json().catch(() => null)
   if (!response.ok) {
     throw new ApiError(payload?.message ?? 'No se pudo completar la solicitud.', {
       status: response.status,
@@ -39,10 +51,10 @@ export async function request(path, options = {}) {
     })
   }
 
-  return payload
+  return payload ?? {}
 }
 
-export function initializeCsrfCookie() {
+export function initializeCsrfCookie(): Promise<ApiPayload> {
   return request('/sanctum/csrf-cookie')
 }
 
