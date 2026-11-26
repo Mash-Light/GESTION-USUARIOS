@@ -3,10 +3,12 @@
 namespace Database\Seeders;
 
 use App\Domain\Access\Models\Role;
+use App\Domain\Auth\Models\ActiveSession;
 use App\Domain\People\Models\Person;
 use App\Domain\Users\Services\GeneratedEmail;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class DemoUsersSeeder extends Seeder
 {
@@ -50,6 +52,8 @@ class DemoUsersSeeder extends Seeder
             ],
         );
         $user->roles()->sync([Role::query()->where('slug', $roleSlug)->value('id')]);
+        ActiveSession::query()->where('user_id', $user->id)->delete();
+        DB::table('sessions')->where('user_id', $user->id)->delete();
 
         return $user;
     }
