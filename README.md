@@ -86,7 +86,7 @@ Sustituye los valores de ejemplo por credenciales propias, conserva `.env` fuera
 - `.github/workflows/ci.yml` ejecuta en pull requests hacia `develop` y `main`: formato PHP con Pint, pruebas Laravel/PostgreSQL y lint/build de React.
 - GitHub protege `develop` y `main`: exige pull request y ambos checks aprobados, requiere que la rama de destino este actualizada y aplica la regla tambien a administradores. Las ramas no permiten borrado ni force push.
 
-Los PR #1–#6 y #8 están integrados en `develop`; el PR #8 incorpora el rediseño React/TypeScript/Tailwind y pasó los checks de Laravel/PostgreSQL y React. Las nuevas mejoras deben partir de `develop` y entrar mediante PR; `main` se actualiza en un PR separado cuando la versión esté lista.
+La rama `develop` integra la versión actual, incluido el rediseño React/TypeScript/Tailwind y la corrección de consumo atómico del token de recuperación. Los checks de Laravel/PostgreSQL y React están definidos en el workflow; las nuevas mejoras deben partir de `develop` y entrar mediante PR. `main` se actualiza en un PR separado cuando la versión esté lista.
 
 ### Preparacion en Linux
 
@@ -128,6 +128,7 @@ Para una base local recién sembrada, usa `Admin001` / `AdminDemo2026!` (adminis
 
 ## Documentacion
 
+- [Guía de entrega, instalación Linux y recorrido de evaluación](docs/entrega.md)
 - [Arquitectura y decisiones](docs/architecture.md)
 - [Matriz de requisitos y etapas](docs/requirements.md)
 - [Trazabilidad de la rúbrica de 100 puntos](docs/rubric.md)
