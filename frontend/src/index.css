@@ -1,0 +1,39 @@
+:root {
+  font-family: 'Segoe UI Variable', 'Segoe UI', sans-serif;
+  color: #17211d;
+  background: #f7f8f5;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto;
+  font-weight: 400;
+
+  --ink: #17211d;
+  --muted: #69756e;
+  --line: #e2e8e2;
+  --paper: #fff;
+  --green-950: #11241c;
+  --green-800: #174d37;
+  --green-600: #28764f;
+  --green-100: #e8f1e9;
+  --error: #a73c36;
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; }
+body { min-width: 320px; min-height: 100vh; margin: 0; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+
+button:focus-visible, input:focus-visible { outline: 3px solid #85c49b; outline-offset: 3px; }
+::selection { color: var(--green-950); background: #bfe4c7; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

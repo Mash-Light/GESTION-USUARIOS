@@ -1,0 +1,21 @@
+# Local secrets and dependency trees
+.env
+.env.*
+!.env.example
+**/node_modules/
+**/vendor/
+
+# Local runtime tools and generated frontend output
+.tools/
+frontend/dist/
+frontend/.vite/
+.playwright-mcp/
+.concord/
+
+# Logs, caches, editor and OS files
+*.log
+.phpunit.cache/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,25 @@
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class UserResource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->fullName(),
+            'username' => $this->username,
+            'email' => $this->email,
+            'status' => $this->status,
+            'roles' => $this->whenLoaded('roles', fn () => $this->roles->pluck('slug')->values()),
+            'permissions' => $this->whenLoaded('roles', fn () => $this->roles
+                ->flatMap(fn ($role) => $role->permissions->pluck('slug'))
+                ->unique()->values()),
+            'last_login_at' => $this->last_login_at?->toIso8601String(),
+        ];
+    }
+}
