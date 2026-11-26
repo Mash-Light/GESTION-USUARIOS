@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import PeopleManagementPage from '../people/PeopleManagementPage.jsx'
+import DashboardPage from '../dashboard/DashboardPage.jsx'
 import './Workspace.css'
 
 const routeLabels = {
@@ -83,7 +84,9 @@ export default function Workspace({ navigation, onLogout, user }) {
         </header>
         {activeRoute === 'users.index' && user.permissions?.includes('people.manage')
           ? <PeopleManagementPage user={user} />
-          : <DefaultPage route={activeRoute} user={user} />}
+          : activeRoute === 'dashboard' && user.permissions?.includes('dashboard.view')
+            ? <DashboardPage user={user} />
+            : <DefaultPage route={activeRoute} user={user} />}
       </main>
     </div>
   )

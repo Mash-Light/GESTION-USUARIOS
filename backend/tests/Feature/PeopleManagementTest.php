@@ -46,6 +46,23 @@ class PeopleManagementTest extends TestCase
         $this->getJson('/api/people')->assertForbidden();
     }
 
+    public function test_dashboard_returns_database_security_summary_for_administrator_only(): void
+    {
+        $admin = $this->admin();
+        $this->signIn($admin);
+
+        $this->getJson('/api/dashboard')
+            ->assertOk()
+            ->assertJsonPath('data.accounts.total', 1)
+            ->assertJsonPath('data.accounts.active', 1)
+            ->assertJsonPath('data.active_sessions', 1)
+            ->assertJsonPath('data.recent_events.0.event', 'auth.login');
+
+        $admin->roles()->sync([Role::query()->where('slug', 'member')->value('id')]);
+
+        $this->getJson('/api/dashboard')->assertForbidden();
+    }
+
     public function test_administrator_can_search_and_filter_people_with_pagination(): void
     {
         $admin = $this->admin();

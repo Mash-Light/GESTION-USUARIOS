@@ -2,7 +2,7 @@
 
 Aplicacion de prueba tecnica para administrar personas, usuarios, sesiones y permisos con una API REST en Laravel y una SPA en React.
 
-> Estado: base de datos, autenticacion segura y pantalla inicial implementadas. El CRUD, permisos, dashboard e importacion siguen pendientes y se desarrollaran en etapas verificables.
+> Estado: autenticacion segura, gestion de personas/cuentas y dashboard conectado a PostgreSQL implementados. La importacion masiva y la evidencia de rendimiento siguen pendientes.
 
 ## Objetivos de la prueba
 
@@ -54,7 +54,8 @@ Las pruebas automatizadas requieren una base separada configurada como `users_ap
 - Hecho: login por usuario/correo, contador y bloqueo al tercer fallo, sesion unica, logout, middleware de sesion y endpoints de recuperacion.
 - Hecho: pantalla responsive de login, recuperacion y gestion de personas/cuentas con busqueda, filtros, orden, paginacion, bloqueo administrativo y baja logica.
 - Hecho: middleware de permisos y menu leido desde la base de datos; auditoria para altas, cambios, bajas y desbloqueos.
-- Pendiente: importacion CSV/XLSX, dashboard conectado a la funcion PostgreSQL, EXPLAIN ANALYZE documentado y evidencias finales.
+- Hecho: dashboard autorizado por permiso, con resumen de cuentas, sesiones, intentos fallidos y actividad reciente; los indicadores principales los calcula una funcion SQL de PostgreSQL.
+- Pendiente: importacion CSV/XLSX, EXPLAIN ANALYZE documentado y evidencias finales.
 
 ## Ramas y verificacion antes de integrar
 
@@ -63,8 +64,35 @@ Las pruebas automatizadas requieren una base separada configurada como `users_ap
 - Las nuevas tareas parten de `develop` en ramas `feature/*` o `fix/*` y se proponen con pull request hacia `develop`.
 - La integracion de `develop` a `main` se hace en otro pull request cuando la version este lista.
 - `.github/workflows/ci.yml` ejecuta en pull requests hacia `develop` y `main`: formato PHP con Pint, pruebas Laravel/PostgreSQL y lint/build de React.
+- GitHub protege `develop` y `main`: exige pull request y ambos checks aprobados, requiere que la rama de destino este actualizada y aplica la regla tambien a administradores. Las ramas no permiten borrado ni force push.
 
-Para impedir merges cuando un job falle, activa en GitHub una regla para `develop` y `main`: exigir pull request y los checks `Laravel and PostgreSQL` y `React build and lint` antes de permitir el merge. GitHub solo permite marcar como requeridos checks que ya hayan ejecutado al menos una vez.
+La pull request activa de esta etapa apunta a `develop`; no integres cambios de una rama feature directamente a `main`.
+
+### Preparacion en Linux
+
+Instala PHP 8.3+ con extensiones `pdo_pgsql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `ctype`, `curl`, `fileinfo` y `bcmath`; Composer 2; Node.js 22+ con npm; y PostgreSQL 15+.
+
+```bash
+git clone https://github.com/Mash-Light/GESTION-USUARIOS.git
+cd GESTION-USUARIOS
+git switch develop
+cp backend/.env.example backend/.env
+cd backend
+composer install
+php artisan key:generate
+php artisan migrate --seed
+php artisan serve --host=127.0.0.1
+```
+
+En otra terminal:
+
+```bash
+cd GESTION-USUARIOS/frontend
+npm ci
+npm run dev -- --host 127.0.0.1
+```
+
+Antes de migrar, crea la base PostgreSQL `users_app` y configura `DB_*` en `backend/.env`. Para correr pruebas, crea una base aislada `users_app_test` y ejecuta `php artisan test` desde `backend`; usa `npm run lint && npm run build` desde `frontend`. No apuntes las pruebas a una base con datos que quieras conservar.
 
 Las contrasenas de demostracion solo se documentaran cuando el flujo de acceso este terminado; deben cambiarse en cualquier entorno compartido.
 

@@ -3,6 +3,7 @@
 use App\Domain\Access\Models\NavigationItem;
 use App\Domain\Auth\Http\Controllers\AuthenticationController;
 use App\Domain\Auth\Http\Controllers\PasswordResetController;
+use App\Domain\Dashboard\Http\Controllers\DashboardController;
 use App\Domain\People\Http\Controllers\PeopleController;
 use App\Http\Middleware\EnsureActiveSession;
 use App\Http\Middleware\RequirePermission;
@@ -33,6 +34,9 @@ Route::middleware(['auth:sanctum', EnsureActiveSession::class])->group(function 
 
         return response()->json(['data' => $items]);
     });
+
+    Route::get('/dashboard', DashboardController::class)
+        ->middleware(RequirePermission::class.':dashboard.view');
 
     Route::middleware(RequirePermission::class.':people.manage')->group(function (): void {
         Route::get('/people', [PeopleController::class, 'index']);
