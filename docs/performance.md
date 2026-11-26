@@ -42,6 +42,12 @@ Medición del entorno local de desarrollo, con el conjunto pequeño de demostrac
 
 El planificador prefiere escaneos secuenciales en tablas pequeñas porque leer todos sus bloques cuesta menos que iniciar búsquedas en varios índices GIN. Esto es esperado y no demuestra que los índices no funcionen. Para verificar el uso de GIN, carga un volumen representativo en una base de prueba, ejecuta `ANALYZE` y compara el plan y buffers. Los tiempos de esta medición son orientativos y dependen del equipo.
 
-### Comparación sintética local
+### Última comparación sintética local
 
-En la misma máquina, contra una base `users_app_test` y con 200.000 filas sintéticas (una coincidencia para `target`), la consulta original recorrió ambas tablas y tardó 279 ms. La versión que separa búsquedas de nombre, identificación, usuario y correo mostró `Bitmap Index Scan` en índices GIN y tardó 55 ms. En esta ejecución la diferencia fue de aproximadamente 80 % menos tiempo (cerca de 5 veces más rápida). Es una comparación de una ejecución caliente en un entorno local, no una garantía de producción; conviene repetirla con la cardinalidad y el hardware del despliegue.
+Medición repetida en el entorno local contra `users_app_test`, con 200.000 personas/cuentas sintéticas y una coincidencia para `target`:
+
+- Consulta original con `OR` sobre tablas unidas: **275,825 ms**. El plan hizo `Parallel Seq Scan` de `people` y `users`, `Parallel Hash Join` y eliminó 100.000 filas en el filtro del join. Usó 5.919 buffers compartidos y además leyó/escribió buffers temporales (`2.755`/`2.776`).
+- Consulta reescrita por campo con trigram: **50,615 ms**. El plan hizo búsquedas bitmap con los cuatro índices GIN: nombre completo, identificación, username y email. Usó 886 buffers compartidos en caché y leyó 119.
+- Diferencia observada: **81,6 % menos tiempo**, aproximadamente **5,45 veces más rápida** en esta ejecución.
+
+El benchmark insertó los registros dentro de una transacción y la revirtió; se verificó después que `people` y `users` siguieran con cero filas en la base de prueba. La comparación es una ejecución local sobre datos sintéticos: los tiempos dependen de caché, estadísticas, configuración de PostgreSQL y hardware. No es una garantía de producción; repítela con cardinalidad y hardware representativos del despliegue.
