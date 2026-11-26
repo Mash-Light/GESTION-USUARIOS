@@ -7,7 +7,11 @@ use App\Domain\Auth\Models\ActiveSession;
 use App\Models\User;
 use Database\Seeders\AccessControlSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
 
 class PeopleManagementTest extends TestCase
@@ -61,6 +65,89 @@ class PeopleManagementTest extends TestCase
         $admin->roles()->sync([Role::query()->where('slug', 'member')->value('id')]);
 
         $this->getJson('/api/dashboard')->assertForbidden();
+    }
+
+    public function test_administrator_can_import_csv_rows_and_repeated_upload_is_idempotent(): void
+    {
+        $admin = $this->admin();
+        $this->signIn($admin);
+        $contents = implode("\n", [
+            'first_name,middle_names,first_surname,second_surname,identification,birth_date,username,password,status',
+            'Lucía,,Vega,Luna,1234567890,1990-05-10,Lucia1234,StrongPass123!,active',
+            'Mateo,,Paz,Rey,1234567890,1992-02-11,Mateo1234,StrongPass123!,active',
+        ]);
+        $file = UploadedFile::fake()->createWithContent('people.csv', $contents);
+
+        $response = $this->post('/api/imports', ['file' => $file], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'partial')
+            ->assertJsonPath('data.total_rows', 2)
+            ->assertJsonPath('data.success_rows', 1)
+            ->assertJsonPath('data.error_rows', 1)
+            ->assertJsonPath('data.rows.1.status', 'failed')
+            ->assertJsonMissingPath('data.rows.0.identification')
+            ->assertJsonMissingPath('data.rows.0.user_id');
+
+        $this->assertDatabaseHas('people', ['identification' => '1234567890']);
+        $this->assertTrue(Hash::check('StrongPass123!', User::query()->where('username', 'Lucia1234')->value('password')));
+        $this->assertDatabaseHas('import_batches', [
+            'id' => $response->json('data.id'),
+            'created_by' => $admin->id,
+            'status' => 'partial',
+        ]);
+        $this->assertDatabaseHas('audit_events', ['event_type' => 'imports.completed', 'result' => 'success']);
+
+        $this->post('/api/imports', ['file' => UploadedFile::fake()->createWithContent('people.csv', $contents)], ['Accept' => 'application/json'])
+            ->assertStatus(409)
+            ->assertJsonPath('data.id', $response->json('data.id'));
+    }
+
+    public function test_user_without_import_permission_cannot_submit_a_file(): void
+    {
+        $member = User::factory()->create();
+        $member->roles()->sync([Role::query()->where('slug', 'member')->value('id')]);
+        $this->signIn($member);
+
+        $this->post('/api/imports', [
+            'file' => UploadedFile::fake()->createWithContent('people.csv', 'first_name'),
+        ], ['Accept' => 'application/json'])->assertForbidden();
+    }
+
+    public function test_administrator_can_import_xlsx_with_excel_date_cells(): void
+    {
+        $admin = $this->admin();
+        $this->signIn($admin);
+        $temporaryPath = tempnam(sys_get_temp_dir(), 'people-import-');
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->fromArray([[
+            'first_name', 'middle_names', 'first_surname', 'second_surname', 'identification',
+            'birth_date', 'username', 'password', 'status',
+        ], [
+            'Elena', '', 'Sol', 'Ríos', '1234567889', '1991-04-12', 'Elena1234', 'StrongPass123!', 'active',
+        ]]);
+        $sheet->setCellValue('F2', ExcelDate::PHPToExcel(new \DateTimeImmutable('1991-04-12')));
+        $sheet->getStyle('F2')->getNumberFormat()->setFormatCode('yyyy-mm-dd');
+        (new Xlsx($spreadsheet))->save($temporaryPath);
+        $spreadsheet->disconnectWorksheets();
+
+        try {
+            $file = new UploadedFile(
+                $temporaryPath,
+                'people.xlsx',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                null,
+                true,
+            );
+
+            $this->post('/api/imports', ['file' => $file], ['Accept' => 'application/json'])
+                ->assertCreated()
+                ->assertJsonPath('data.success_rows', 1)
+                ->assertJsonPath('data.rows.0.status', 'imported');
+            $this->assertDatabaseHas('people', ['identification' => '1234567889', 'birth_date' => '1991-04-12']);
+        } finally {
+            @unlink($temporaryPath);
+        }
     }
 
     public function test_administrator_can_search_and_filter_people_with_pagination(): void

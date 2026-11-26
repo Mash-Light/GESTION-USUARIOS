@@ -6,23 +6,25 @@ function readCookie(name) {
 }
 
 export class ApiError extends Error {
-  constructor(message, { status, errors = {} } = {}) {
+  constructor(message, { status, errors = {}, data = null } = {}) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.errors = errors
+    this.data = data
   }
 }
 
 export async function request(path, options = {}) {
   const { headers: customHeaders = {}, ...requestOptions } = options
   const csrfToken = readCookie('XSRF-TOKEN')
+  const isFormData = typeof FormData !== 'undefined' && requestOptions.body instanceof FormData
   const response = await fetch(`${apiBase}${path}`, {
     ...requestOptions,
     credentials: 'include',
     headers: {
       Accept: 'application/json',
-      ...(requestOptions.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(requestOptions.body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
       ...customHeaders,
       ...(csrfToken ? { 'X-XSRF-TOKEN': decodeURIComponent(csrfToken) } : {}),
     },
@@ -33,6 +35,7 @@ export async function request(path, options = {}) {
     throw new ApiError(payload?.message ?? 'No se pudo completar la solicitud.', {
       status: response.status,
       errors: payload?.errors,
+      data: payload?.data,
     })
   }
 

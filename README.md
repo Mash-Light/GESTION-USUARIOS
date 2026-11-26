@@ -2,7 +2,7 @@
 
 Aplicacion de prueba tecnica para administrar personas, usuarios, sesiones y permisos con una API REST en Laravel y una SPA en React.
 
-> Estado: autenticacion segura, gestion de personas/cuentas y dashboard conectado a PostgreSQL implementados. La importacion masiva y la evidencia de rendimiento siguen pendientes.
+> Estado: autenticacion segura, gestion de personas/cuentas, dashboard e importacion CSV/XLSX implementados. La evidencia de rendimiento está documentada para la base de demostracion; se recomienda ampliar la medicion con un volumen representativo.
 
 ## Objetivos de la prueba
 
@@ -52,10 +52,11 @@ Las pruebas automatizadas requieren una base separada configurada como `users_ap
 
 - Hecho: migraciones PostgreSQL para personas, usuarios, roles, permisos, sesiones, auditoria e importaciones; restricciones e indices; datos sinteticos de demostracion.
 - Hecho: login por usuario/correo, contador y bloqueo al tercer fallo, sesion unica, logout, middleware de sesion y endpoints de recuperacion.
-- Hecho: pantalla responsive de login, recuperacion y gestion de personas/cuentas con busqueda, filtros, orden, paginacion, bloqueo administrativo y baja logica.
+- Hecho: pantalla responsive de login, recuperacion, gestion de personas/cuentas y carga CSV/XLSX con busqueda, filtros, orden, paginacion, bloqueo administrativo, baja logica y reporte por fila.
 - Hecho: middleware de permisos y menu leido desde la base de datos; auditoria para altas, cambios, bajas y desbloqueos.
 - Hecho: dashboard autorizado por permiso, con resumen de cuentas, sesiones, intentos fallidos y actividad reciente; los indicadores principales los calcula una funcion SQL de PostgreSQL.
-- Pendiente: importacion CSV/XLSX, EXPLAIN ANALYZE documentado y evidencias finales.
+- Hecho: índices GIN trigram para búsqueda parcial y procedimiento reproducible `EXPLAIN ANALYZE`; la medición del conjunto pequeño de demostración está en `docs/performance.md`.
+- Pendiente: repetir la medición de rendimiento con un volumen representativo mayor y recoger evidencia visual final.
 
 ## Ramas y verificacion antes de integrar
 
@@ -70,7 +71,7 @@ La pull request activa de esta etapa apunta a `develop`; no integres cambios de 
 
 ### Preparacion en Linux
 
-Instala PHP 8.3+ con extensiones `pdo_pgsql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `ctype`, `curl`, `fileinfo` y `bcmath`; Composer 2; Node.js 22+ con npm; y PostgreSQL 15+.
+Instala PHP 8.3+ con extensiones `pdo_pgsql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `ctype`, `curl`, `fileinfo`, `gd` y `zip`; Composer 2; Node.js 22+ con npm; y PostgreSQL 15+. Para cargas de hasta 10 MB, configura `upload_max_filesize=10M` y `post_max_size=12M` en `php.ini`.
 
 ```bash
 git clone https://github.com/Mash-Light/GESTION-USUARIOS.git
@@ -112,3 +113,4 @@ Las contrasenas de demostracion solo se documentaran cuando el flujo de acceso e
 - [Matriz de requisitos y etapas](docs/requirements.md)
 - [Trazabilidad de la rúbrica de 100 puntos](docs/rubric.md)
 - [Medición y plan de búsqueda PostgreSQL](docs/performance.md)
+- [Formato, validación y seguridad de la importación](docs/imports.md)

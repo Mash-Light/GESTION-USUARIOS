@@ -8,7 +8,7 @@ Aplicacion de gestion de usuarios con SPA React y API Laravel. El servidor es la
 
 ### ADR-001: Laravel modular con MVC y servicios de aplicacion
 
-Se usaran modulos por capacidad de negocio (`Auth`, `People`, `Users`, `Access`, `Audit`, `Imports`, `Dashboard`). Controladores HTTP traducen solicitudes y respuestas; Form Requests validan entrada; servicios concentran casos de uso y transacciones; modelos Eloquent representan persistencia; Policies autorizan recursos; Resources fijan el contrato JSON.
+La API se divide en modulos por capacidad de negocio (`Auth`, `People`, `Users`, `Access`, `Audit`, `Imports`, `Dashboard`). Controladores HTTP traducen solicitudes y respuestas; Form Requests validan entrada; servicios concentran casos de uso y transacciones; modelos Eloquent representan persistencia; middleware y permisos de dominio autorizan rutas y acciones; Resources fijan el contrato JSON.
 
 Esto mantiene el flujo visible para un desarrollador junior y evita tanto controladores con reglas de negocio como capas de repositorio sin valor adicional. Los servicios no dependen del ciclo HTTP, por lo que se pueden probar directamente.
 
@@ -36,7 +36,7 @@ Los registros se conservan con `deleted_at` para mantener referencias y trazabil
 
 ### ADR-007: importacion idempotente con resultado por fila
 
-Cada fila se valida y normaliza primero. La identificacion normalizada funciona como clave de deduplicacion. Se almacenan un lote y resultados por fila, sin guardar el archivo completo mas tiempo del necesario. La persistencia por fila permite reportar exitos y errores individuales; se documentara si el modo seleccionado confirma filas validas aunque otras fallen.
+El archivo se valida por tipo, tamaño, encabezados y número de filas. Cada fila usa las mismas reglas y el mismo servicio de creación que el formulario; la huella SHA-256 junto con el actor evita procesar dos veces el mismo archivo. Una transacción por fila permite conservar las cuentas válidas aunque otra falle. Solo se guardan el lote, el resultado de cada fila y los errores; las contraseñas se hashean por el modelo de usuario y no aparecen en auditoría ni en la respuesta. La carga síncrona se limita a 100 filas para controlar la duración de la petición.
 
 ## 3. Modulos del backend
 
@@ -91,14 +91,14 @@ La paginacion, filtros y orden se ejecutan en SQL. Los nombres de campos ordenab
 
 ## 7. Frontend
 
-React se organiza por funcionalidad: `features/auth`, `features/users`, `features/dashboard`, `features/imports`, `features/navigation`; `shared/api`, `shared/components`, `shared/hooks`. Las rutas requieren sesion, los errores se asocian al control correspondiente y la expiracion de sesion devuelve al login con aviso accesible.
+React se organiza por funcionalidad: `features/auth`, `features/people`, `features/dashboard`, `features/imports`, `features/workspace`; `shared/api` y `shared/components`. Las vistas protegidas solo se ofrecen al reflejar los permisos recibidos, y la API vuelve a comprobarlos en cada solicitud. Los formularios muestran errores de servidor y las pantallas de administración se adaptan a escritorio y móvil.
 
-La interfaz sera responsive, semantica y navegable por teclado. Las validaciones muestran mensajes al terminar la interaccion, no antes. Tablas tendran encabezados reales, paginacion de servidor y una presentacion util en moviles. Los criterios de `modern-web-guidance` se consultan antes de cada patron de formulario/tabla.
+La interfaz es responsive, semántica y navegable por teclado. La gestión de personas usa tabla paginada en servidor; la carga permite descargar una plantilla y presenta un resumen con errores por fila. Los campos y componentes evitan dependencias de APIs obsoletas.
 
 ## 8. Riesgos y pendientes conscientes
 
 - El enunciado no define el comportamiento de email al borrar una cuenta; se mantendra unicidad historica hasta decidir y documentar una politica segura.
 - El email de recuperacion requiere un canal de correo. En desarrollo se usara un mailer de log local que nunca se versiona como credencial.
 - `EXPLAIN ANALYZE` y el procedimiento/funcion almacenada son especificos de PostgreSQL y se incluiran en scripts.
-- El orden de importacion y estrategia ante errores parciales quedara visible al usuario y en documentacion.
+- La importación confirma cada fila válida por separado; la pantalla y `docs/imports.md` muestran el estado parcial y los errores que requieren corrección.
 - La diferencia de sintaxis entre motores impide prometer portabilidad SQL total; se aisla SQL especifico y se explica como adaptarlo.

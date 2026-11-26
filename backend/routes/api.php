@@ -4,6 +4,7 @@ use App\Domain\Access\Models\NavigationItem;
 use App\Domain\Auth\Http\Controllers\AuthenticationController;
 use App\Domain\Auth\Http\Controllers\PasswordResetController;
 use App\Domain\Dashboard\Http\Controllers\DashboardController;
+use App\Domain\Imports\Http\Controllers\ImportController;
 use App\Domain\People\Http\Controllers\PeopleController;
 use App\Http\Middleware\EnsureActiveSession;
 use App\Http\Middleware\RequirePermission;
@@ -37,6 +38,9 @@ Route::middleware(['auth:sanctum', EnsureActiveSession::class])->group(function 
 
     Route::get('/dashboard', DashboardController::class)
         ->middleware(RequirePermission::class.':dashboard.view');
+
+    Route::post('/imports', [ImportController::class, 'store'])
+        ->middleware(RequirePermission::class.':imports.manage');
 
     Route::middleware(RequirePermission::class.':people.manage')->group(function (): void {
         Route::get('/people', [PeopleController::class, 'index']);
