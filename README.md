@@ -4,6 +4,10 @@ Aplicacion de prueba tecnica para administrar personas, usuarios, sesiones y per
 
 > Estado: autenticacion segura, gestion de personas/cuentas, dashboard e importacion CSV/XLSX implementados. La búsqueda se midió en una base de prueba con 200.000 filas sintéticas; antes de desplegar conviene repetir la medición con datos y hardware representativos.
 
+## Presentación del proyecto
+
+[Ver el video de presentación (75 segundos, con audio)](docs/media/gestion-usuarios.mp4). Resume la arquitectura, seguridad, base de datos, frontend y pruebas; complementa la guía reproducible de [entrega](docs/entrega.md).
+
 ## Objetivos de la prueba
 
 - Gestionar personas y sus cuentas con reglas de identificacion, usuario y correo.
