@@ -95,7 +95,7 @@ npm run dev -- --host 127.0.0.1
 
 Antes de migrar, crea la base PostgreSQL `users_app` y configura `DB_*` en `backend/.env`. Para correr pruebas, crea una base aislada `users_app_test` y ejecuta `php artisan test` desde `backend`; usa `npm run lint && npm run build` desde `frontend`. No apuntes las pruebas a una base con datos que quieras conservar.
 
-Para una base local recién sembrada, usa `Admin001` / `AdminDemo2026!` (administración) o `Usuario1` / `UsuarioDemo2026!` (cuenta miembro). Son cuentas sintéticas de desarrollo; cambia o elimina estas claves antes de usar datos o infraestructura compartidos.
+Para una base local recién sembrada, usa `Admin001` / `AdminDemo2026!` (administración) o `Usuario1` / `UsuarioDemo2026!` (cuenta miembro). Son cuentas sintéticas de desarrollo; el seeder revoca las sesiones anteriores al restablecerlas. Cambia o elimina estas claves antes de usar datos o infraestructura compartidos.
 
 ## Seguridad prevista
 
