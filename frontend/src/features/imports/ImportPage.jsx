@@ -3,6 +3,17 @@ import { importPeople } from './importService.js'
 import './ImportPage.css'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
+const IMPORT_COLUMNS = [
+  { key: 'first_name', label: 'Nombres', optional: false },
+  { key: 'middle_names', label: 'Segundos nombres', optional: true },
+  { key: 'first_surname', label: 'Primer apellido', optional: false },
+  { key: 'second_surname', label: 'Segundo apellido', optional: false },
+  { key: 'identification', label: 'Identificación', optional: false },
+  { key: 'birth_date', label: 'Fecha de nacimiento', optional: true },
+  { key: 'username', label: 'Nombre de usuario', optional: false },
+  { key: 'password', label: 'Contraseña temporal', optional: false },
+  { key: 'status', label: 'Estado de la cuenta', optional: true },
+]
 
 function fileSize(bytes) {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
@@ -73,8 +84,16 @@ export default function ImportPage() {
         </label>
 
         <div className="imports-columns">
-          <p><strong>Columnas requeridas en la primera fila</strong></p>
-          <code>first_name, middle_names, first_surname, second_surname, identification, birth_date, username, password, status</code>
+          <div className="imports-columns-heading"><p><strong>Campos del archivo</strong></p><span>Incluye estos encabezados en la primera fila y respeta el orden.</span></div>
+          <ol className="imports-column-grid">
+            {IMPORT_COLUMNS.map(({ key, label, optional }) => (
+              <li className="imports-column-item" key={key}>
+                <span className="imports-column-label">{label}</span>
+                <code>{key}</code>
+                <span className={optional ? 'imports-column-status is-optional' : 'imports-column-status'}>{optional ? 'Opcional' : 'Obligatorio'}</span>
+              </li>
+            ))}
+          </ol>
           <small>Las fechas usan formato AAAA-MM-DD. Deja vacíos middle_names, birth_date o status si no aplican; status vacío crea la cuenta como activa. Las importaciones crean cuentas con rol Usuario.</small>
         </div>
         <div className="imports-security-note"><span aria-hidden="true">◇</span><p>El archivo contiene contraseñas. Usa una conexión segura y elimina la copia local cuando termine la carga. El sistema conserva el resultado y los errores, pero nunca guarda el archivo ni las contraseñas de la hoja.</p></div>
