@@ -68,7 +68,7 @@ jobs:
         run: php artisan test
 
   frontend:
-    name: React build and lint
+    name: React typecheck, lint and build
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
