@@ -52,13 +52,16 @@ class PasswordResetController extends Controller
             ],
             function (User $account, string $password) use ($request, $auditLogger): void {
                 DB::transaction(function () use ($account, $password, $request, $auditLogger): void {
+                    $account = User::query()->whereKey($account->id)->lockForUpdate()->firstOrFail();
                     $account->forceFill([
                         'password' => Hash::make($password),
                         'password_changed_at' => now(),
                         'failed_login_attempts' => 0,
+                        'locked_at' => null,
                     ])->save();
 
                     ActiveSession::query()->where('user_id', $account->id)->delete();
+                    DB::table('sessions')->where('user_id', $account->id)->delete();
                     $auditLogger->record($request, 'auth.password_reset', 'success', subject: $account);
                 });
 

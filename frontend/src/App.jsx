@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import { currentNavigation, currentUser, logout } from './features/auth/authService.js'
 import LoginPage from './features/auth/LoginPage.jsx'
+import ResetPasswordPage from './features/auth/ResetPasswordPage.jsx'
 import Workspace from './features/workspace/Workspace.jsx'
 import BrandMark from './shared/components/BrandMark.jsx'
 
@@ -21,6 +22,8 @@ export default function App() {
   }
 
   useEffect(() => {
+    if (window.location.pathname === '/reset-password') return undefined
+
     let mounted = true
 
     currentUser()
@@ -33,6 +36,8 @@ export default function App() {
 
     return () => { mounted = false }
   }, [])
+
+  if (window.location.pathname === '/reset-password') return <ResetPasswordPage />
 
   async function handleLogout() {
     await logout()

@@ -38,6 +38,10 @@ Los registros se conservan con `deleted_at` para mantener referencias y trazabil
 
 El archivo se valida por tipo, tamaño, encabezados y número de filas. Cada fila usa las mismas reglas y el mismo servicio de creación que el formulario; la huella SHA-256 junto con el actor evita procesar dos veces el mismo archivo. Una transacción por fila permite conservar las cuentas válidas aunque otra falle. Solo se guardan el lote, el resultado de cada fila y los errores; las contraseñas se hashean por el modelo de usuario y no aparecen en auditoría ni en la respuesta. La carga síncrona se limita a 100 filas para controlar la duración de la petición.
 
+### ADR-008: recuperación de contraseña revoca la sesión anterior
+
+El enlace del correo apunta a la SPA mediante `FRONTEND_URL`, y el token y correo viajan como parámetros de consulta para que el formulario los envíe a la API. La API aplica las mismas reglas de contraseña fuerte que el alta. Al consumir el token, bloquea la fila de usuario, actualiza la contraseña, limpia el bloqueo por intentos fallidos y elimina tanto la sesión activa de dominio como las sesiones persistidas de Laravel. Así, una recuperación confirmada invalida el acceso previo y queda auditada sin registrar el token ni la contraseña.
+
 ## 3. Modulos del backend
 
 ```text
@@ -98,7 +102,7 @@ La interfaz es responsive, semántica y navegable por teclado. La gestión de pe
 ## 8. Riesgos y pendientes conscientes
 
 - El enunciado no define el comportamiento de email al borrar una cuenta; se mantendra unicidad historica hasta decidir y documentar una politica segura.
-- El email de recuperacion requiere un canal de correo. En desarrollo se usara un mailer de log local que nunca se versiona como credencial.
+- El email de recuperacion requiere un canal de correo. En desarrollo se usa `MAIL_MAILER=log`; en despliegue configura un proveedor real y `FRONTEND_URL` al origen HTTPS de la SPA.
 - `EXPLAIN ANALYZE` y el procedimiento/funcion almacenada son especificos de PostgreSQL y se incluiran en scripts.
 - La importación confirma cada fila válida por separado; la pantalla y `docs/imports.md` muestran el estado parcial y los errores que requieren corrección.
 - La diferencia de sintaxis entre motores impide prometer portabilidad SQL total; se aisla SQL especifico y se explica como adaptarlo.

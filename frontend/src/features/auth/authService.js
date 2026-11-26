@@ -18,6 +18,14 @@ export async function requestPasswordReset(email) {
   })
 }
 
+export async function resetPassword({ token, email, password, password_confirmation: confirmation }) {
+  await initializeCsrfCookie()
+  return request('/api/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, email, password, password_confirmation: confirmation }),
+  })
+}
+
 export async function logout() {
   const response = await request('/api/logout', { method: 'POST' })
   clearCsrfCookie()

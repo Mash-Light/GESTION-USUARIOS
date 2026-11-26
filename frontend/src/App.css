@@ -166,6 +166,7 @@
 .authenticated-card .eyebrow { margin: 0; }
 .authenticated-card > p:not(.eyebrow) { margin: 0 0 10px; }
 .success-mark { display: grid; width: 48px; height: 48px; place-items: center; border-radius: 50%; color: var(--green-800); background: var(--green-100); font-size: 22px; }
+.reset-login-link { text-decoration: none; }
 
 @keyframes enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
