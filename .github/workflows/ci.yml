@@ -85,6 +85,10 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Check TypeScript types
+        working-directory: frontend
+        run: npm run typecheck
+
       - name: Run linter
         working-directory: frontend
         run: npm run lint

@@ -60,7 +60,9 @@ class PeopleManagementTest extends TestCase
             ->assertJsonPath('data.accounts.total', 1)
             ->assertJsonPath('data.accounts.active', 1)
             ->assertJsonPath('data.active_sessions', 1)
-            ->assertJsonPath('data.recent_events.0.event', 'auth.login');
+            ->assertJsonPath('data.recent_events.0.event', 'auth.login')
+            ->assertJsonPath('data.activity_by_day.6.successful', 1)
+            ->assertJsonPath('data.recent_users.0.id', $admin->id);
 
         $admin->roles()->sync([Role::query()->where('slug', 'member')->value('id')]);
 

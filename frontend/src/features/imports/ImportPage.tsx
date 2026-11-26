@@ -1,5 +1,7 @@
-import { useRef, useState } from 'react'
-import { importPeople } from './importService.js'
+import { useRef, useState, type FormEvent } from 'react'
+import { useMutation } from '@tanstack/react-query'
+import { ApiError } from '../../shared/api/httpClient'
+import { importPeople, type ImportBatch } from './importService'
 import './ImportPage.css'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -15,23 +17,24 @@ const IMPORT_COLUMNS = [
   { key: 'status', label: 'Estado de la cuenta', optional: true },
 ]
 
-function fileSize(bytes) {
+function fileSize(bytes: number) {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-function rowErrorText(errors) {
+function rowErrorText(errors: Record<string, string[]> = {}) {
   return Object.entries(errors ?? {}).flatMap(([field, messages]) => messages.map((message) => `${field}: ${message}`)).join(' · ')
 }
 
 export default function ImportPage() {
-  const inputRef = useRef(null)
-  const [file, setFile] = useState(null)
-  const [batch, setBatch] = useState(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [batch, setBatch] = useState<ImportBatch | null>(null)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
+  const importMutation = useMutation({ mutationFn: importPeople })
+  const busy = importMutation.isPending
 
-  function selectFile(nextFile) {
+  function selectFile(nextFile?: File) {
     setBatch(null)
     setNotice('')
     setError('')
@@ -42,27 +45,26 @@ export default function ImportPage() {
     setFile(nextFile)
   }
 
-  async function submit(event) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!file || busy) return
-    setBusy(true)
     setError('')
     setNotice('')
     try {
-      const result = await importPeople(file)
+      const result = await importMutation.mutateAsync(file)
       setBatch(result)
       setFile(null)
       if (inputRef.current) inputRef.current.value = ''
     } catch (requestError) {
-      if (requestError.status === 409 && requestError.data) {
-        setBatch(requestError.data)
+      const apiError = requestError instanceof ApiError ? requestError : new Error('No se pudo completar la importación.')
+      const data = requestError instanceof ApiError ? requestError.data : null
+      if (requestError instanceof ApiError && requestError.status === 409 && data) {
+        setBatch(data)
         setNotice('Este archivo ya se había procesado; aquí está su resultado anterior.')
       } else {
-        const fileError = requestError.errors?.file?.[0]
-        setError(fileError ?? requestError.message)
+        const fileError = requestError instanceof ApiError ? requestError.errors.file?.[0] : undefined
+        setError(fileError ?? apiError.message)
       }
-    } finally {
-      setBusy(false)
     }
   }
 
