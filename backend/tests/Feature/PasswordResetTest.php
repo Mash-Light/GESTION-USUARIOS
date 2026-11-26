@@ -64,13 +64,17 @@ class PasswordResetTest extends TestCase
             'last_activity' => now()->timestamp,
         ]);
         $token = Password::createToken($user);
+        $storedToken = DB::table('password_reset_tokens')->where('email', $user->email)->value('token');
+        $this->assertNotSame($token, $storedToken);
+        $this->assertTrue(Hash::check($token, $storedToken));
 
-        $this->postJson('/api/reset-password', [
+        $credentials = [
             'email' => $user->email,
             'token' => $token,
             'password' => 'NewStrongPass2026!',
             'password_confirmation' => 'NewStrongPass2026!',
-        ])->assertOk();
+        ];
+        $this->postJson('/api/reset-password', $credentials)->assertOk();
 
         $user->refresh();
         $this->assertTrue(Hash::check('NewStrongPass2026!', $user->password));
@@ -78,11 +82,44 @@ class PasswordResetTest extends TestCase
         $this->assertNull($user->locked_at);
         $this->assertDatabaseMissing('active_sessions', ['user_id' => $user->id]);
         $this->assertDatabaseMissing('sessions', ['user_id' => $user->id]);
+        $this->assertDatabaseMissing('password_reset_tokens', ['email' => $user->email]);
         $this->assertDatabaseHas('audit_events', ['event_type' => 'auth.password_reset', 'result' => 'success']);
+
+        $this->postJson('/api/reset-password', $credentials)
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'El enlace no es válido o ya venció. Solicita otro.');
+        $this->assertTrue(Hash::check('NewStrongPass2026!', $user->fresh()->password));
 
         $this->postJson('/api/login', [
             'login' => $user->username,
             'password' => 'NewStrongPass2026!',
         ])->assertOk();
+    }
+
+    public function test_reset_rejects_invalid_and_expired_tokens(): void
+    {
+        $user = User::factory()->create();
+        $token = Password::createToken($user);
+        $originalPasswordHash = $user->password;
+
+        $this->postJson('/api/reset-password', [
+            'email' => $user->email,
+            'token' => 'not-the-issued-token',
+            'password' => 'NewStrongPass2026!',
+            'password_confirmation' => 'NewStrongPass2026!',
+        ])->assertUnprocessable()
+            ->assertJsonPath('message', 'El enlace no es válido o ya venció. Solicita otro.');
+
+        $this->travel(61)->minutes();
+        $this->postJson('/api/reset-password', [
+            'email' => $user->email,
+            'token' => $token,
+            'password' => 'NewStrongPass2026!',
+            'password_confirmation' => 'NewStrongPass2026!',
+        ])->assertUnprocessable()
+            ->assertJsonPath('message', 'El enlace no es válido o ya venció. Solicita otro.');
+        $this->travelBack();
+
+        $this->assertSame($originalPasswordHash, $user->fresh()->password);
     }
 }

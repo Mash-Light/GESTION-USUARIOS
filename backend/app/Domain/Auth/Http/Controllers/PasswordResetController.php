@@ -43,31 +43,40 @@ class PasswordResetController extends Controller
         $email = Str::lower(trim($request->string('email')->toString()));
         $user = User::query()->whereRaw('LOWER(email) = ?', [$email])->first();
 
-        $status = Password::reset(
-            [
-                'email' => $user?->email ?? $email,
-                'token' => $request->string('token')->toString(),
-                'password' => $request->string('password')->toString(),
-                'password_confirmation' => $request->string('password_confirmation')->toString(),
-            ],
-            function (User $account, string $password) use ($request, $auditLogger): void {
-                DB::transaction(function () use ($account, $password, $request, $auditLogger): void {
-                    $account = User::query()->whereKey($account->id)->lockForUpdate()->firstOrFail();
-                    $account->forceFill([
-                        'password' => Hash::make($password),
-                        'password_changed_at' => now(),
-                        'failed_login_attempts' => 0,
-                        'locked_at' => null,
-                    ])->save();
+        $status = DB::transaction(function () use ($user, $email, $request, $auditLogger): string {
+            if ($user !== null) {
+                DB::table(config('auth.passwords.users.table'))
+                    ->where('email', $user->getEmailForPasswordReset())
+                    ->lockForUpdate()
+                    ->first();
+            }
 
-                    ActiveSession::query()->where('user_id', $account->id)->delete();
-                    DB::table('sessions')->where('user_id', $account->id)->delete();
-                    $auditLogger->record($request, 'auth.password_reset', 'success', subject: $account);
-                });
+            return Password::reset(
+                [
+                    'email' => $user?->email ?? $email,
+                    'token' => $request->string('token')->toString(),
+                    'password' => $request->string('password')->toString(),
+                    'password_confirmation' => $request->string('password_confirmation')->toString(),
+                ],
+                function (User $account, string $password) use ($request, $auditLogger): void {
+                    DB::transaction(function () use ($account, $password, $request, $auditLogger): void {
+                        $account = User::query()->whereKey($account->id)->lockForUpdate()->firstOrFail();
+                        $account->forceFill([
+                            'password' => Hash::make($password),
+                            'password_changed_at' => now(),
+                            'failed_login_attempts' => 0,
+                            'locked_at' => null,
+                        ])->save();
 
-                event(new PasswordReset($account));
-            },
-        );
+                        ActiveSession::query()->where('user_id', $account->id)->delete();
+                        DB::table('sessions')->where('user_id', $account->id)->delete();
+                        $auditLogger->record($request, 'auth.password_reset', 'success', subject: $account);
+                    });
+
+                    event(new PasswordReset($account));
+                },
+            );
+        });
 
         if ($status !== Password::PASSWORD_RESET) {
             $auditLogger->record($request, 'auth.password_reset', 'failed', subject: $user, metadata: [
