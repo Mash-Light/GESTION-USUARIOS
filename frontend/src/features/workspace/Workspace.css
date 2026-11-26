@@ -31,7 +31,10 @@
 @media (max-width: 760px) {
   .workspace-layout { grid-template-columns: 1fr; }
   .workspace-sidebar { min-height: unset; padding: 14px 16px 10px; }
-  .workspace-sidebar-label, .workspace-sidebar-bottom { display: none; }
+  .workspace-sidebar-label { display: none; }
+  .workspace-sidebar-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+  .workspace-user-card { min-width: 0; padding: 7px 3px; border-top: 0; }
+  .workspace-logout { width: auto; flex: 0 0 auto; padding-inline: 9px; }
   .workspace-nav { display: flex; width: 100%; min-width: 0; overflow-x: auto; margin-top: 15px; }
   .workspace-nav-item { min-width: max-content; }
   .workspace-main { min-height: calc(100vh - 116px); }

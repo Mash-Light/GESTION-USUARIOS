@@ -6,6 +6,7 @@ use App\Domain\Auth\Http\Controllers\PasswordResetController;
 use App\Domain\Dashboard\Http\Controllers\DashboardController;
 use App\Domain\Imports\Http\Controllers\ImportController;
 use App\Domain\People\Http\Controllers\PeopleController;
+use App\Domain\People\Http\Controllers\ProfileController;
 use App\Http\Middleware\EnsureActiveSession;
 use App\Http\Middleware\RequirePermission;
 use Illuminate\Http\Request;
@@ -17,6 +18,7 @@ Route::post('/reset-password', [PasswordResetController::class, 'reset']);
 
 Route::middleware(['auth:sanctum', EnsureActiveSession::class])->group(function (): void {
     Route::get('/user', [AuthenticationController::class, 'current']);
+    Route::patch('/profile', [ProfileController::class, 'update']);
     Route::post('/logout', [AuthenticationController::class, 'logout']);
 
     Route::get('/navigation', function (Request $request) {

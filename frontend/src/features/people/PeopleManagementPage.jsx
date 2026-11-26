@@ -23,7 +23,6 @@ function PersonFormDialog({ person, onClose, onSaved }) {
     birth_date: person.birth_date ?? '',
     username: person.user.username,
     password: '',
-    role: person.user.role ?? 'member',
     status: person.user.status,
   } : blankPerson)
   const [errors, setErrors] = useState({})
@@ -140,14 +139,7 @@ function PersonFormDialog({ person, onClose, onSaved }) {
               type: 'password', required: !person, autoComplete: person ? 'new-password' : 'new-password',
               hint: person ? 'Déjalo vacío para conservar la contraseña actual.' : '10 o más caracteres, mayúscula, minúscula, número y símbolo.',
             })}
-            <div className="people-form-field">
-              <label htmlFor="person-role">Rol *</label>
-              <select id="person-role" name="role" onChange={updateField} required value={form.role}>
-                <option value="member">Usuario</option>
-                <option value="admin">Administrador</option>
-              </select>
-              {fieldError('role')}
-            </div>
+            <div className="people-form-field people-role-note"><span>Rol de la cuenta</span><strong>Usuario</strong><small>Las cuentas administrativas están protegidas.</small></div>
             <div className="people-form-field">
               <label htmlFor="person-status">Estado *</label>
               <select id="person-status" name="status" onChange={updateField} required value={form.status}>
@@ -337,9 +329,10 @@ export default function PeopleManagementPage({ user }) {
                   <td data-label="Estado"><span className={`people-status-chip ${person.user.status === 'active' ? 'is-active' : 'is-inactive'}`}><i aria-hidden="true" />{person.user.status === 'active' ? 'Activo' : 'Inactivo'}</span></td>
                   <td data-label="Último acceso" className="people-date-cell">{dateLabel(person.user.last_login_at)}</td>
                   <td data-label="Acciones"><div className="people-row-actions">
-                    {person.user.locked_at && user.permissions?.includes('users.unlock') && <button className="people-action-button" disabled={busyId === person.id} onClick={() => unlock(person)} type="button">Desbloquear</button>}
-                    <button aria-label={`Editar cuenta de ${person.first_name} ${person.first_surname}`} className="people-action-button" onClick={() => setEditing(person)} type="button">Editar</button>
-                    {person.user.id !== user.id && <button aria-label={`Eliminar cuenta de ${person.first_name} ${person.first_surname}`} className="people-action-button people-action-danger" onClick={() => setDeleting(person)} type="button">Eliminar</button>}
+                    {person.user.role !== 'admin' && person.user.locked_at && user.permissions?.includes('users.unlock') && <button className="people-action-button" disabled={busyId === person.id} onClick={() => unlock(person)} type="button">Desbloquear</button>}
+                    {person.user.role !== 'admin' && person.user.id !== user.id && <button aria-label={`Editar cuenta de ${person.first_name} ${person.first_surname}`} className="people-action-button" onClick={() => setEditing(person)} type="button">Editar</button>}
+                    {person.user.role === 'admin' && <span className="people-role-chip">Protegida</span>}
+                    {person.user.role !== 'admin' && person.user.id !== user.id && <button aria-label={`Eliminar cuenta de ${person.first_name} ${person.first_surname}`} className="people-action-button people-action-danger" onClick={() => setDeleting(person)} type="button">Eliminar</button>}
                   </div></td>
                 </tr>
               ))}

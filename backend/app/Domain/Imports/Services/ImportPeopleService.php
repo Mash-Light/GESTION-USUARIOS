@@ -159,7 +159,7 @@ class ImportPeopleService
             'identification' => ['required', 'string', 'regex:/^(?!.*([0-9])\\1{3})[0-9]{10}$/'],
             'birth_date' => ['nullable', 'date', 'before:today'],
             'username' => ['required', 'string', 'min:8', 'max:20', 'regex:/^(?=.*[A-Z])(?=.*[0-9])[A-Za-z0-9]+$/'],
-            'password' => ['required', 'string', Password::min(10)->mixedCase()->numbers()->symbols()],
+            'password' => ['required', 'string', 'not_regex:/\s/', Password::min(10)->mixedCase()->numbers()->symbols()],
             'status' => ['required', 'in:active,inactive'],
         ]);
 

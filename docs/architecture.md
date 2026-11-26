@@ -42,6 +42,10 @@ El archivo se valida por tipo, tamaño, encabezados y número de filas. Cada fil
 
 El enlace del correo apunta a la SPA mediante `FRONTEND_URL`, y el token y correo viajan como parámetros de consulta para que el formulario los envíe a la API. La API aplica las mismas reglas de contraseña fuerte que el alta. Al consumir el token, bloquea la fila de usuario, actualiza la contraseña, limpia el bloqueo por intentos fallidos y elimina tanto la sesión activa de dominio como las sesiones persistidas de Laravel. Así, una recuperación confirmada invalida el acceso previo y queda auditada sin registrar el token ni la contraseña.
 
+### ADR-009: el perfil propio tiene un contrato más estrecho que la administración
+
+La bienvenida consume el recurso del usuario autenticado y muestra identidad, fecha del último ingreso e intentos fallidos actuales. La ruta `PATCH /api/profile` solo permite editar nombres y fecha de nacimiento; identificación, username, correo, rol, estado y contraseña no se aceptan ahí. El permiso `profile.update-own` se comprueba en el servidor, y el cambio queda auditado. El administrador gestiona cuentas comunes, pero las rutas de edición, baja y desbloqueo rechazan cualquier cuenta que no tenga exactamente el rol `member`; la interfaz también oculta esas acciones. La restricción del servidor prevalece aunque se invoque la API directamente.
+
 ## 3. Modulos del backend
 
 ```text
