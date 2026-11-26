@@ -72,6 +72,51 @@ class PostgresConcurrencyTest extends TestCase
         }
     }
 
+    public function test_parallel_login_waits_for_the_first_locked_attempt_and_observes_its_session(): void
+    {
+        [$first, $pgSecond] = $this->connections();
+        $salt = bin2hex(random_bytes(5));
+        $personId = $this->createPerson($first, 'login'.$salt);
+        $username = 'Login'.strtoupper($salt);
+        $sessionHash = hash('sha256', 'concurrent-session-'.$salt);
+        $createUser = $first->prepare('INSERT INTO users (person_id, username, email, password, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW()) RETURNING id');
+        $createUser->execute([$personId, $username, $salt.'@test.local', 'hash', 'active']);
+        $userId = (int) $createUser->fetchColumn();
+
+        try {
+            $first->beginTransaction();
+            $first->prepare('SELECT id FROM users WHERE id = ? FOR UPDATE')->execute([$userId]);
+
+            $this->assertSame(0, (int) $first->query('SELECT COUNT(*) FROM active_sessions WHERE user_id = '.$userId)->fetchColumn());
+            $sent = pg_send_query_params($pgSecond, 'SELECT id FROM users WHERE id = $1 FOR UPDATE', [$userId]);
+            $this->assertTrue($sent);
+
+            $first->prepare('INSERT INTO active_sessions (user_id, session_hash, expires_at, created_at, updated_at) VALUES (?, ?, NOW() + INTERVAL \'2 hours\', NOW(), NOW())')
+                ->execute([$userId, $sessionHash]);
+            $first->commit();
+
+            $lockResult = pg_get_result($pgSecond);
+            $this->assertNotFalse($lockResult);
+            $this->assertSame((string) $userId, pg_fetch_result($lockResult, 0, 'id'));
+
+            $visibleSession = pg_query_params(
+                $pgSecond,
+                'SELECT EXISTS (SELECT 1 FROM active_sessions WHERE user_id = $1 AND expires_at > NOW()) AS active',
+                [$userId],
+            );
+            $this->assertNotFalse($visibleSession);
+            $this->assertSame('t', pg_fetch_result($visibleSession, 0, 'active'));
+        } finally {
+            if ($first->inTransaction()) {
+                $first->rollBack();
+            }
+            $first->prepare('DELETE FROM active_sessions WHERE user_id = ?')->execute([$userId]);
+            $first->prepare('DELETE FROM users WHERE id = ?')->execute([$userId]);
+            $first->prepare('DELETE FROM people WHERE id = ?')->execute([$personId]);
+            pg_close($pgSecond);
+        }
+    }
+
     /** @return array{PDO, resource} */
     private function connections(): array
     {

@@ -41,7 +41,7 @@ No se deben compartir archivos `.env` ni credenciales reales. Para levantarlo en
 
 1. Crear una base PostgreSQL y configurar sus datos en `backend/.env` a partir de `backend/.env.example`.
 2. Instalar las dependencias del backend con `composer install` dentro de `backend` y generar una clave con `php artisan key:generate`.
-3. Instalar el frontend con `npm install` dentro de `frontend`.
+3. Instalar el frontend con `npm ci` dentro de `frontend` para reproducir las versiones del lockfile.
 4. Ejecutar las migraciones y datos de demostracion con `php artisan migrate --seed` desde `backend`.
 5. En una terminal, ejecutar `php artisan serve --host=127.0.0.1` dentro de `backend`.
 6. En otra terminal, ejecutar `npm run dev -- --host 127.0.0.1` dentro de `frontend` y abrir la URL que Vite muestre.
@@ -67,7 +67,7 @@ Las pruebas automatizadas requieren una base separada configurada como `users_ap
 - `.github/workflows/ci.yml` ejecuta en pull requests hacia `develop` y `main`: formato PHP con Pint, pruebas Laravel/PostgreSQL y lint/build de React.
 - GitHub protege `develop` y `main`: exige pull request y ambos checks aprobados, requiere que la rama de destino este actualizada y aplica la regla tambien a administradores. Las ramas no permiten borrado ni force push.
 
-La pull request activa de esta etapa apunta a `develop`; no integres cambios de una rama feature directamente a `main`.
+El PR #1 ya se integró en `develop`. Las siguientes mejoras parten de esa rama y se integran mediante nuevos PR; `main` se actualiza en un PR separado cuando `develop` esté listo.
 
 ### Preparacion en Linux
 
@@ -95,7 +95,7 @@ npm run dev -- --host 127.0.0.1
 
 Antes de migrar, crea la base PostgreSQL `users_app` y configura `DB_*` en `backend/.env`. Para correr pruebas, crea una base aislada `users_app_test` y ejecuta `php artisan test` desde `backend`; usa `npm run lint && npm run build` desde `frontend`. No apuntes las pruebas a una base con datos que quieras conservar.
 
-Las contrasenas de demostracion solo se documentaran cuando el flujo de acceso este terminado; deben cambiarse en cualquier entorno compartido.
+Para una base local recién sembrada, usa `Admin001` / `AdminDemo2026!` (administración) o `Usuario1` / `UsuarioDemo2026!` (cuenta miembro). Son cuentas sintéticas de desarrollo; cambia o elimina estas claves antes de usar datos o infraestructura compartidos.
 
 ## Seguridad prevista
 
@@ -104,7 +104,7 @@ Las contrasenas de demostracion solo se documentaran cuando el flujo de acceso e
 - Transacciones y bloqueo de fila para serializar intentos de login y creacion de sesion unica.
 - Cookies `HttpOnly`, `Secure` en despliegue y `SameSite`; proteccion CSRF de Sanctum.
 - Respuesta uniforme de recuperacion para impedir enumeracion de cuentas.
-- Autorizacion mediante Policies en cada accion; React solo refleja permisos, no los concede.
+- Autorizacion de cada ruta mediante middleware de permisos; React solo refleja permisos, no los concede.
 - Registro de auditoria con resultado, actor, fecha y metadatos permitidos; secretos excluidos.
 
 ## Documentacion
