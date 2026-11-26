@@ -111,3 +111,4 @@ Las contrasenas de demostracion solo se documentaran cuando el flujo de acceso e
 - [Arquitectura y decisiones](docs/architecture.md)
 - [Matriz de requisitos y etapas](docs/requirements.md)
 - [Trazabilidad de la rúbrica de 100 puntos](docs/rubric.md)
+- [Medición y plan de búsqueda PostgreSQL](docs/performance.md)

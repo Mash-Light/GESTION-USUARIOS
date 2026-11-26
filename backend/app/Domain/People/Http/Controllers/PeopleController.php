@@ -42,7 +42,7 @@ class PeopleController extends Controller
             ->when(! empty($filters['search']), function ($builder) use ($filters): void {
                 $term = '%'.mb_strtolower(trim($filters['search'])).'%';
                 $builder->where(function ($nested) use ($term): void {
-                    $nested->whereRaw("LOWER(CONCAT_WS(' ', people.first_name, people.middle_names, people.first_surname, people.second_surname)) LIKE ?", [$term])
+                    $nested->whereRaw("LOWER(COALESCE(people.first_name, '') || ' ' || COALESCE(people.middle_names, '') || ' ' || COALESCE(people.first_surname, '') || ' ' || COALESCE(people.second_surname, '')) LIKE ?", [$term])
                         ->orWhereRaw('LOWER(people.identification) LIKE ?', [$term])
                         ->orWhereRaw('LOWER(managed_users.username) LIKE ?', [$term])
                         ->orWhereRaw('LOWER(managed_users.email) LIKE ?', [$term]);
